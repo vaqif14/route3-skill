@@ -3,7 +3,7 @@ name: route3
 description: >-
   Use when the user runs /route3, says "route3 this", wants multi-expert
   build/review, overnight/night-shift queue, design-from-image, or a domain
-  team (startup / project / halal / enterprise / agency). ALWAYS clarify
+  team (startup / project / halal / enterprise / agency), or NotebookLM/NBLM-grounded research. ALWAYS clarify
   first: investigate, ask all material questions across scope/UX/data/auth/
   edges/AC until clear, then execute Codex→Kimi→native with silent project
   defaults, curated skills, reviewer + boss gates, no-MVP. Do NOT use for
@@ -33,6 +33,7 @@ Progressive disclosure — load depth only when the step needs it:
 | Always (Build) | `slim-v3-contract.md` + `clarify-then-execute.md` |
 | Defaults / portability | `project-profile.md` |
 | Grill modes | `matt-grill-flow.md` |
+| NotebookLM research/clarify | `notebooklm-research.md` + `route3-notebooklm-expert` |
 | Skill pick | `skill-routing.md` |
 | Pipeline / design | `build-pipeline.md` |
 | Agents / gates | `agents-and-gates.md` |
@@ -80,6 +81,7 @@ BUILD_PROOF + SLICE_EVAL → check-plan-done.sh → ≤15-line report
 
 0. **Clarify then execute.** Non-trivial: questions until `open_branches=none`
    + `CLARIFY_COVERAGE` + preflight PASS. See `clarify-then-execute.md`.
+   If NotebookLM/NBLM/URL → dispatch `route3-notebooklm-expert` first (`notebooklm-research.md`).
 1. **Codex → Kimi → native.** `scripts/route-slice.sh` before BUILD; log
    `ROUTE_DECISION`; never invent primary. See `native-primary.md`.
 2. **Silent profile defaults.** Never re-ask brand/locale/AZN/stack/model.

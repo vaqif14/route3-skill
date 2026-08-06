@@ -9,6 +9,10 @@ Callers: `SKILL.md` hard rule #0; `matt-grill-flow.md`; `build-pipeline.md`;
 User intent (verbatim policy): given a concrete task, ask all-sided questions
 when any remain; after everything is clear, execute.
 
+## NotebookLM lane
+
+If the task should be grounded in a NotebookLM vault (user said NBLM / pasted notebook URL / domain pack exists), during INVESTIGATE dispatch `route3-notebooklm-expert` (`notebooklm-research.md`). Merge `nblm_answered` dims into `CLARIFY_COVERAGE` as `answered`. Only ask the user dims still `needs_user`.
+
 ## Absolute stop
 
 Until `GRILL: status=ALIGNED` **and** `check-preflight.sh` exits 0:

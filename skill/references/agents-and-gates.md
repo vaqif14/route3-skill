@@ -20,6 +20,7 @@ for discussion rounds. Agents live in `~/.claude/agents/route3/`.
 | `route3-improver` | Quality | Apply FIX findings; behavior-preserving |
 | `route3-skill-user` | Support | Curated skill autodecide + invoke |
 | `route3-researcher` | Support | Docs/web/codebase; may learn new skills |
+| `route3-notebooklm-expert` | Support | NotebookLM connect → research → clarify package |
 | `route3-docs-writer` | Support | Runbooks/release notes from approved diffs |
 
 **Separation of duties:** planner ≠ builder ≠ validator ≠ approver.
@@ -43,6 +44,7 @@ Skills are NOT chosen here — see `skill-routing.md`.
 | audit/vuln/IDOR | security-auditor |
 | docs/runbook/release | docs-writer |
 | unknown lib / "necə işləyir" | researcher |
+| NotebookLM / NBLM / notebook URL | notebooklm-expert |
 
 ## STATUS contract
 
