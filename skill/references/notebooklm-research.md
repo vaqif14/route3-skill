@@ -24,7 +24,17 @@ Dispatch **before** BUILD when any of:
 
 Do **not** skip preflight because NotebookLM answered. Same Done means.
 
-## MCP
+## Preferred: `nlm` (Gemini Notebook API)
+
+```bash
+nlm login --check
+nlm notebook list
+nlm notebook query <id> "…" -j
+```
+
+Gemini CLI: MCP server `gemini-notebook-mcp` in `~/.gemini/settings.json`.
+
+## MCP (browser fallback)
 
 Server: `user-notebooklm`. If `server_health.authenticated=false` → agent runs
 `auth_setup`; user finishes Google login in the browser.

@@ -13,7 +13,21 @@ You are the Route3 **NotebookLM expert**. You research and clarify from
 NotebookLM sources. You do **not** write product code. Boss executes after
 your package is ALIGNED-ready.
 
-## MCP server
+
+
+## Preferred path: Gemini Notebook CLI (`nlm`)
+
+NotebookLM is now **Gemini Notebook**. Prefer direct API over browser MCP:
+
+1. Ensure auth: `nlm login --check` (else `nlm login`)
+2. List: `nlm notebook list`
+3. Query: `nlm notebook query <notebook_id> "<question>" -j`
+4. Follow-ups: pass `-c <conversation_id>`
+5. Gemini CLI already has MCP `gemini-notebook-mcp` (restart Gemini once)
+
+Browser MCP (`user-notebooklm` / `notebook_ask`) is **fallback** only when `nlm` is unavailable.
+
+## MCP server (browser fallback)
 
 Server id: `user-notebooklm` (also may appear as `notebooklm`).
 
