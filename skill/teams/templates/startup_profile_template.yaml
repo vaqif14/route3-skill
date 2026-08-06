@@ -1,0 +1,164 @@
+startup_profile_version: 1.0.0
+instructions: Replace every placeholder before running startup agents. Unknown material fields must be marked unknown, not guessed.
+identity:
+  startup_id: STARTUP-001
+  name: <startup name>
+  one_line_description: <what it does and for whom>
+  stage: ideation
+  founded_date: <YYYY-MM-DD or unknown>
+  headquarters_country: <country>
+  operating_countries:
+  - <country>
+  website: <url or none>
+founders_and_governance:
+  founders:
+  - name: <name>
+    role: <role>
+    decision_areas:
+    - <area>
+  authorized_approvers:
+    strategy:
+    - <person>
+    finance:
+    - <person>
+    legal:
+    - <person or counsel>
+    marketing_publish:
+    - <person>
+    hiring:
+    - <person>
+    security_data:
+    - <person>
+  board_or_advisors: []
+problem_and_customer:
+  problem_statement: <specific painful problem>
+  target_customers:
+  - <segment>
+  users:
+  - <user role>
+  buyers:
+  - <buyer role>
+  geographies:
+  - <market>
+  jobs_to_be_done:
+  - <job>
+  current_alternatives:
+  - <alternative>
+  evidence_refs: []
+solution_and_product:
+  solution_summary: <solution>
+  product_type: <SaaS, marketplace, hardware, AI, service, etc.>
+  product_status: <idea, prototype, MVP, live>
+  core_workflow: <user workflow>
+  differentiation:
+  - <differentiator>
+  technical_registry_ref: enterprise_agent_registry.yaml
+  known_constraints:
+  - <constraint>
+business_model:
+  model: <subscription, usage, transaction, licensing, service, hybrid>
+  pricing_status: <unknown, hypothesis, tested, live>
+  pricing:
+  - <plan or hypothesis>
+  revenue_status: <pre-revenue or current state>
+  sales_motion: <self-serve, PLG, founder-led, inside sales, enterprise, channel>
+  unit_economics:
+    currency: USD
+    cac: unknown
+    ltv: unknown
+    gross_margin: unknown
+    payback_months: unknown
+traction:
+  customers: 0
+  active_users: 0
+  monthly_revenue: 0
+  arr_or_annualized_revenue: 0
+  growth_rate: unknown
+  retention: unknown
+  pipeline: unknown
+  validated_claims: []
+  evidence_refs: []
+market_and_competition:
+  category: <category>
+  competitors:
+  - <competitor>
+  tam_sam_som_status: not modeled
+  regulatory_context:
+  - <regulation or unknown>
+  market_assumptions:
+  - <assumption>
+go_to_market:
+  positioning: <current positioning or unknown>
+  channels:
+  - <channel>
+  launch_status: <not launched, beta, launched>
+  marketing_assets:
+  - <asset>
+  sales_assets:
+  - <asset>
+  brand_voice: <voice>
+  approved_claims:
+  - <claim that can be published>
+  prohibited_claims:
+  - <claim not allowed>
+finance_and_funding:
+  currency: USD
+  cash_balance: unknown
+  monthly_burn: unknown
+  runway_months: unknown
+  budget_period: <period>
+  funding_to_date: unknown
+  fundraising_status: <not raising, preparing, active>
+  target_round: unknown
+  cap_table_ref: <secure ref or none>
+  financial_model_ref: <secure ref or none>
+team_and_operations:
+  team_size: 1
+  current_roles:
+  - Founder
+  planned_hires: []
+  critical_vendors: []
+  operating_cadence: <weekly review, etc.>
+  tools: []
+  key_processes: []
+legal_security_and_data:
+  entity_status: <not formed, formed>
+  entity_jurisdiction: <jurisdiction or unknown>
+  contracts_status: <status>
+  ip_status: <status>
+  privacy_status: <status>
+  security_status: <status>
+  data_classes:
+  - public
+  - internal
+  - confidential
+  - restricted
+  sensitive_data_types: []
+  professional_advisors:
+    legal: <contact or none>
+    accounting: <contact or none>
+    tax: <contact or none>
+    security: <contact or none>
+goals_and_constraints:
+  north_star_goal: <main outcome>
+  next_90_day_goals:
+  - <goal>
+  milestones:
+  - name: <milestone>
+    target_date: <YYYY-MM-DD>
+    success_metric: <metric>
+  hard_constraints:
+  - <budget, legal, geography, time, team>
+  risk_tolerance: <low, medium, high by area>
+  founder_preferences:
+  - <preference>
+agent_configuration:
+  enabled_squads:
+  - idea_validation_squad
+  disabled_agents: []
+  allowed_external_actions: draft_only
+  default_approval_mode: human_required
+  memory_policy: startup_scoped
+  reporting_cadence: weekly
+  timezone: Asia/Baku
+  locale: az-AZ

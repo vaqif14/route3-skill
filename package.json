@@ -1,0 +1,44 @@
+{
+  "name": "route3-skill",
+  "version": "1.0.0",
+  "description": "Route3 multi-expert orchestrator skill: clarify-then-execute, Codex→Kimi→native, progressive refs for Claude Code / Cursor.",
+  "main": "bin/route3-skill.js",
+  "bin": {
+    "route3-skill": "bin/route3-skill.js"
+  },
+  "scripts": {
+    "postinstall": "node bin/route3-skill.js install --quiet",
+    "preuninstall": "node bin/route3-skill.js uninstall --quiet",
+    "test": "node bin/route3-skill.js install --dry-run"
+  },
+  "files": [
+    "bin/",
+    "skill/",
+    "agents/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "claude-code",
+    "cursor",
+    "agent-skill",
+    "skill",
+    "route3",
+    "ai-assistant",
+    "multi-agent",
+    "orchestrator"
+  ],
+  "author": "vaqif14",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vaqif14/route3-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vaqif14/route3-skill/issues"
+  },
+  "homepage": "https://github.com/vaqif14/route3-skill#readme",
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,125 @@
+ai_website_agency_profile_version: 1.0.0
+instructions:
+- Replace placeholders with facts; mark material unknowns as unknown.
+- No external outreach, spend, deployment, DNS, contract or payment action without approval.
+- Profit is a target, not a guarantee.
+- Use only permitted lead sources and honor suppression/opt-out.
+- Demos must be unofficial previews on controlled domains until contracted.
+identity:
+  agency_case_id: AWA-001
+  founder_or_owner: <name>
+  country_of_residence: Azerbaijan
+  timezone: Asia/Baku
+  preferred_language: Azerbaijani
+  stage: idea
+goal:
+  target_type: monthly_net_profit
+  currency: AZN
+  target_min: '3000'
+  target_max: '5000'
+  target_deadline: <YYYY-MM or unknown>
+  acceptable_ramp_months: <number>
+  income_target_is_not_guaranteed: true
+founder_capacity:
+  starting_budget: <amount>
+  maximum_loss_budget: <amount>
+  weekly_hours: <hours>
+  skills:
+  - <skill>
+  technical_level: <beginner/intermediate/advanced>
+  sales_experience: <none/basic/experienced>
+  team_or_solo: solo
+market:
+  target_countries:
+  - <country>
+  target_cities:
+  - <city>
+  languages:
+  - Azerbaijani
+  - <other>
+  B2B_focus: true
+  niche_candidates:
+  - <niche>
+  excluded_niches:
+  - gambling
+  - alcohol
+  - adult services
+  - interest-based lending
+  - counterfeit/piracy
+  - illegal or deceptive businesses
+business_model:
+  preferred:
+  - hybrid
+  setup_fee_range: <amount>
+  monthly_fee_range: <amount>
+  client_ownership_model: clear in contract
+  revision_policy: <policy>
+  cancellation_and_export_policy: <policy>
+lead_sources:
+  allowed:
+  - official APIs
+  - licensed business datasets
+  - public business directories where permitted
+  - referrals
+  - manual public research
+  prohibited:
+  - access-control bypass
+  - terms-violating scraping
+  - purchased personal lists without lawful basis
+  - contacting suppressed recipients
+  existing_leads: 0
+outreach:
+  channels_allowed:
+  - business email
+  - phone with permission
+  - direct mail
+  daily_caps:
+    email: <number>
+    phone: <number>
+    direct_mail: <number>
+  sender_identity: <business identity>
+  opt_out_process: <process>
+  jurisdictions_reviewed: []
+delivery:
+  preferred_stack:
+  - <stack>
+  hosting_model: <client-owned or managed>
+  domain_ownership: client
+  demo_environment: controlled preview subdomain
+  supported_integrations:
+  - <integration>
+  support_hours: <hours>
+halal_ethics:
+  screening_mode: conservative
+  scholar_or_advisor_available: unknown
+  no_interest_financing: true
+  no_fake_reviews: true
+  no_fake_scarcity: true
+  no_impersonation: true
+  no_unverified_claims: true
+approval_matrix:
+  approve_niche: founder
+  approve_lead_source: founder/compliance owner
+  approve_demo: founder/quality owner
+  approve_outreach_batch: founder
+  approve_discount_or_custom_terms: founder
+  sign_contract: founder
+  approve_payment_or_refund: founder
+  approve_production_launch: founder + client authorized approver
+  approve_DNS_change: client domain owner + technical owner
+selected_niche:
+  status: not selected
+  name: unknown
+  buyer: unknown
+  problem: unknown
+  evidence_refs: []
+selected_offer:
+  status: not selected
+  name: unknown
+  deliverables: []
+  price: unknown
+  monthly_fee: unknown
+  economics: {}
+current_stage_gate: G0 founder and ethics fit
+evidence_refs: []
+decisions: []

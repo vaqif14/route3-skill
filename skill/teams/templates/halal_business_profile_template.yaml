@@ -1,0 +1,157 @@
+halal_business_profile_version: 1.0.0
+instructions:
+- Replace placeholders with facts. Mark unknown material fields as unknown; do not guess.
+- Monthly profit is a target, not a guarantee.
+- Choose a currency explicitly. Net profit is after all business costs and before or after owner tax only as stated.
+- No agent may publish a listing, spend money, open an account, order stock, sign a supplier, send a campaign or make a binding claim
+  without the configured approval.
+- Internal halal screening does not replace a qualified Shariah scholar for ambiguous products, financing or contracts.
+identity:
+  business_case_id: HB-001
+  founder_or_owner: <name>
+  country_of_residence: Azerbaijan
+  operating_country_or_markets:
+  - <country>
+  timezone: Asia/Baku
+  preferred_language: Azerbaijani
+  business_stage: idea
+income_goal:
+  target_type: monthly_net_profit
+  currency: AZN
+  target_min: '3000'
+  target_max: '5000'
+  target_deadline: <YYYY-MM or unknown>
+  acceptable_ramp_months: <number>
+  profit_definition: after product, production, shipping, platform, payment, ads, refunds, software and operating costs; tax treatment
+    must be stated separately
+  income_target_is_not_guaranteed: true
+founder_constraints:
+  starting_capital: <amount or unknown>
+  maximum_loss_budget: <amount>
+  weekly_hours: <hours>
+  skills:
+  - <skill>
+  experience:
+  - <experience>
+  languages:
+  - Azerbaijani
+  - <other>
+  risk_tolerance: low
+  physical_storage_available: unknown
+  can_create_original_designs: unknown
+  can_provide_services: unknown
+  willing_to_handle_customer_support: unknown
+  preferred_business_types:
+  - digital products
+  - services
+  - owned inventory
+  - wholesale
+  - original-design POD
+  - transparent agency
+  excluded_business_types: []
+halal_and_ethics_policy:
+  strictness: conservative screening; scholar review for ambiguity
+  qualified_scholar_available: unknown
+  prohibited_categories:
+  - alcohol
+  - gambling
+  - adult content
+  - interest-based lending
+  - counterfeit or pirated products
+  - deceptive marketing
+  - fake reviews
+  - unsafe or illegal goods
+  financing_constraints:
+  - no interest-bearing business financing unless independently approved as compliant
+  dropshipping_rule: Do not approve by label alone. Map ownership, possession, agency, disclosure, seller responsibility and platform
+    policy; escalate ambiguity.
+  required_ethics:
+  - truthful listings
+  - genuine reviews
+  - clear delivery and refund terms
+  - no fake scarcity
+  - no unsupported halal or performance claims
+platform_and_country_access:
+  existing_accounts:
+    etsy: none
+    amazon: none
+    ebay: none
+    own_store: none
+  identity_documents_available: unknown
+  business_registration: unknown
+  bank_or_payout_access: unknown
+  payment_processors_available: []
+  shipping_origin: Azerbaijan
+  target_destinations: []
+  platform_eligibility_verified_on: unknown
+  policy_evidence_refs: []
+preferences:
+  product_or_service_interests:
+  - <interest>
+  avoid_categories:
+  - <category>
+  digital_vs_physical: open
+  B2C_vs_B2B: open
+  marketplace_vs_own_channel: open
+  short_term_cash_vs_long_term_brand: balanced
+opportunity_candidates: []
+selected_opportunity:
+  status: not selected
+  name: unknown
+  business_model: unknown
+  platforms: []
+  customer: unknown
+  problem: unknown
+  value_proposition: unknown
+  transaction_structure: unknown
+  halal_screening_status: not reviewed
+  platform_policy_status: not reviewed
+  country_feasibility_status: not reviewed
+economics:
+  selling_price: unknown
+  product_or_delivery_cost: unknown
+  shipping_cost: unknown
+  platform_and_payment_fees: unknown
+  advertising_cost_per_order: unknown
+  returns_reserve: unknown
+  contribution_profit_per_order: unknown
+  required_orders_per_month: unknown
+  startup_cash_required: unknown
+  working_capital_required: unknown
+  break_even_month: unknown
+  downside_case: unknown
+validation_plan:
+  maximum_test_budget: <amount>
+  test_duration_days: '30'
+  test_method: unknown
+  pass_metrics: []
+  stop_conditions: []
+  approved_by: unknown
+governance:
+  authorized_approvers:
+    opportunity_selection:
+    - <person>
+    halal_or_scholar_review:
+    - <qualified reviewer>
+    budget_and_spend:
+    - <person>
+    legal_tax:
+    - <professional or owner>
+    supplier_contract:
+    - <person>
+    listing_publication:
+    - <person>
+    scale_up:
+    - <person>
+  default_external_action_mode: draft_only
+  default_approval_mode: human_required
+  audit_logs_enabled: true
+agent_configuration:
+  registry: halal_business_agent_registry.yaml
+  enabled_squads:
+  - halal_income_opportunity_squad
+  additional_squads: []
+  disabled_agents: []
+  project_business_bridge_enabled: true
+  startup_bridge_enabled: true
+  software_bridge_enabled: true

@@ -1,0 +1,22 @@
+{
+  "skill": "route3",
+  "version": "slim-v3-pro",
+  "threshold": 0.9,
+  "must_clarify_before_code": [
+    {"id": "cl-1", "prompt": "/route3 seller-ə refund flow əlavə et", "expect": "clarify_ask"},
+    {"id": "cl-2", "prompt": "route3: checkout-u yaxşılaşdır", "expect": "clarify_ask"},
+    {"id": "cl-3", "prompt": "admin-ə yeni səhifə qoy", "expect": "clarify_ask"},
+    {"id": "cl-4", "prompt": "notification sistemi qur", "expect": "clarify_ask"}
+  ],
+  "must_not_ask_profile_defaults": [
+    {"id": "cl-d1", "prompt": "/route3 product card density sıxlaşdır", "forbid_topics": ["brand color", "AZN", "hansı model", "Inter font"]},
+    {"id": "cl-d2", "prompt": "route3: empty wishlist gizlət", "forbid_topics": ["locale", "PashaPay stack"]}
+  ],
+  "may_execute_after_confirm": [
+    {"id": "cl-ok1", "prompt": "user: yes to all (after full package shown)", "expect": "preflight_then_build"},
+    {"id": "cl-ok2", "prompt": "user: continue — defaults OK", "expect": "preflight_then_build"}
+  ],
+  "must_not_align_with_open_branches": [
+    {"id": "cl-block1", "state": "D4 data_contracts: asked", "expect": "no_aligned"}
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "skill": "route3",
+  "version": "slim-v3-pro",
+  "threshold": 0.9,
+  "runs_per_query": 1,
+  "should_trigger": [
+    {
+      "id": "st-1",
+      "prompt": "/route3 brand slug 404-ü düzəlt"
+    },
+    {
+      "id": "st-2",
+      "prompt": "route3 this: seller dashboard-a order status əlavə et"
+    },
+    {
+      "id": "st-3",
+      "prompt": "yatanda bitir: 1) flash sale density 2) comeback strip polish"
+    },
+    {
+      "id": "st-4",
+      "prompt": "bu dizayn screenshot-u product card üçün implement et"
+    },
+    {
+      "id": "st-5",
+      "prompt": "overnight queue: checkout postal code optional et, 5h"
+    },
+    {
+      "id": "st-6",
+      "prompt": "startup komandası: ICP və willingness-to-pay validation planı"
+    },
+    {
+      "id": "st-7",
+      "prompt": "halal e-commerce üçün Etsy listing skill pipeline işlət"
+    },
+    {
+      "id": "st-8",
+      "prompt": "enterprise SaaS multi-tenant billing modulu planla"
+    },
+    {
+      "id": "st-9",
+      "prompt": "website agency: local clinic üçün demo sayt build"
+    },
+    {
+      "id": "st-10",
+      "prompt": "layihə idarə et: charter + WBS + G3 baseline"
+    },
+    {
+      "id": "st-11",
+      "prompt": "hər şeyi soruş sonra et: cart reorder bug-unu route3 ilə düzəlt"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "sn-1",
+      "prompt": "bu funksiya nə edir?"
+    },
+    {
+      "id": "sn-2",
+      "prompt": "typo düzəlt: Populyar Brendlər → Populyar brendlər bir sətirdə"
+    },
+    {
+      "id": "sn-3",
+      "prompt": "git status nə göstərir?"
+    },
+    {
+      "id": "sn-4",
+      "prompt": "AZN nə deməkdir?"
+    },
+    {
+      "id": "sn-5",
+      "prompt": "Prisma Decimal-i JSON-a necə çevirim? (qısa izah)"
+    },
+    {
+      "id": "sn-6",
+      "prompt": "commit message yaz (yalnız mətn, kod dəymə)"
+    },
+    {
+      "id": "sn-7",
+      "prompt": "bu error stack-i oxu və bir cümlə ilə de"
+    },
+    {
+      "id": "sn-8",
+      "prompt": "hansı modeləsən?"
+    },
+    {
+      "id": "sn-9",
+      "prompt": "bu PR-də nə dəyişib? qısa xülasə"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+example_name: Azerbaijan founder seeking halal monthly net profit opportunities
+user_request: Mənə elə biznes ideyaları ver ki, Etsy, Amazon, eBay, dropshipping və ya başqa kanal vasitəsilə halal qaydalara uyğun
+  ayda 3,000–5,000 AZN xalis qazanc hədəfinə çata bilim.
+normalized_profile:
+  country: Azerbaijan
+  currency: AZN
+  target_monthly_net_profit:
+    min: 3000
+    max: 5000
+  starting_capital: unknown
+  weekly_hours: unknown
+  deadline: unknown
+  skills: unknown
+  halal_screening: conservative
+  profit_is_not_guaranteed: true
+agent_execution:
+- Ask only for missing material facts or show clearly labeled scenarios when the founder wants an immediate answer.
+- Generate at least ten opportunities across original digital products, services, wholesale, owned inventory, original-design POD, agency
+  and compliant marketplace models.
+- Do not treat generic Etsy dropshipping as valid.
+- Do not approve Amazon or eBay supplier fulfillment until current platform policy and transaction structure are verified.
+- Rank the final three opportunities and show the exact monthly order or client volume required for the target net profit.
+- Recommend one capped-cost 30-day validation test before significant inventory or ad spend.
+expected_output_sections:
+- Assumptions and missing facts
+- Rejected categories or models
+- Top three opportunities
+- Halal and platform status
+- Unit economics and required monthly volume
+- 30-day validation plan
+- 60-90-day launch path
+- Risks, stop conditions and approval needs

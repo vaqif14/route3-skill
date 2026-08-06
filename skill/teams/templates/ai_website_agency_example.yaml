@@ -1,0 +1,67 @@
+example_version: 1.0.0
+name: Ethical Local Service Website Agency Example
+status: illustrative assumptions only; verify before action
+profile_overrides:
+  identity:
+    agency_case_id: AWA-EX-LOCAL-001
+    country_of_residence: Azerbaijan
+    timezone: Asia/Baku
+    stage: validation
+  goal:
+    target_type: monthly_net_profit
+    currency: AZN
+    target_min: '3000'
+    target_max: '5000'
+    acceptable_ramp_months: 6
+    income_target_is_not_guaranteed: true
+  founder_capacity:
+    starting_budget: 1500 AZN example ceiling
+    maximum_loss_budget: 700 AZN validation ceiling
+    weekly_hours: '20'
+    team_or_solo: solo + AI agents
+  market:
+    target_countries:
+    - Azerbaijan
+    target_cities:
+    - Baku
+    niche_candidates:
+    - home repair and installation services
+    - education and training providers
+    - professional local services
+    excluded_niches:
+    - prohibited and high-risk sectors
+  business_model:
+    preferred:
+    - hybrid
+    setup_fee_range: 900-2500 AZN illustrative
+    monthly_fee_range: 100-350 AZN illustrative
+validation_sequence:
+- week: '1'
+  action: Score 5 niches using 20 businesses each; manually verify public data and site quality.
+  pass: At least one niche has 30%+ clearly material website problems and reachable business contacts.
+- week: '2'
+  action: Interview or speak with 5-10 owners; validate cost of lost inquiries and buying process.
+  pass: At least 3 owners confirm the problem and 1 agrees to review a scoped proposal or paid pilot.
+- week: '3'
+  action: Create one reusable vertical template and 3 clearly labeled demos.
+  pass: Each demo passes QA and can be customized within the target delivery hours.
+- week: '4'
+  action: Run one approved low-volume outreach batch and measure replies, calls and objections.
+  pass: Evidence supports continued testing; otherwise revise or stop.
+illustrative_unit_economics:
+  warning: Replace with verified local costs and actual conversion data.
+  average_collected_setup: 1500 AZN
+  average_monthly_fee: 180 AZN
+  direct_build_and_delivery_cost: 450 AZN
+  monthly_direct_service_cost: 50 AZN/client
+  setup_contribution_before_overhead: 1050 AZN
+  monthly_contribution_before_overhead: 130 AZN/client
+  target_logic: 'Examples: 3 setup projects at 1050 AZN contribution = 3150 AZN before overhead/tax, or a mixed portfolio of setup contribution
+    plus recurring contribution. Capacity and acquisition costs must be included.'
+stop_conditions:
+- Lead source is not permitted
+- No validated buyer pain after the interview threshold
+- No paid pilot after two revised experiments
+- Contribution margin is negative after founder time
+- Refunds, complaints or opt-outs exceed configured thresholds
+- Quality or support load cannot be maintained

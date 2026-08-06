@@ -1,0 +1,233 @@
+project_profile_version: 1.0.0
+instructions:
+- Replace placeholders with known facts. Mark unknown material fields as unknown; do not guess.
+- Use one profile per initiative. Portfolio-level initiatives may reference child project profiles.
+- No agent may release money, sign, publish, hire, book, purchase or change production systems without the configured human approval.
+identity:
+  project_id: PROJECT-001
+  name: <project name>
+  project_type: <competition_event | retail_ecommerce | software_solutions_company | saas_product | hardware_electronics | internal_transformation
+    | other>
+  lifecycle_stage: idea
+  one_line_summary: <what will be created, for whom, and why>
+  sponsor: <accountable sponsor>
+  project_manager: <named person or unassigned>
+  country: <country>
+  operating_locations:
+  - <location>
+  timezone: Asia/Baku
+  currency: <project currency>
+  target_start: <YYYY-MM-DD or unknown>
+  target_launch_or_finish: <YYYY-MM-DD or unknown>
+strategy_and_business_case:
+  problem_or_opportunity: <specific problem or opportunity>
+  strategic_objectives:
+  - <objective>
+  beneficiaries:
+  - <beneficiary>
+  customers_users_payers:
+    users:
+    - <user>
+    buyers_or_payers:
+    - <payer>
+    partners:
+    - <partner>
+  options_considered:
+  - do nothing
+  - <option 1>
+  - <option 2>
+  preferred_option: unknown
+  evidence_refs: []
+  critical_assumptions:
+  - assumption: <assumption>
+    test: <test>
+    owner: <owner>
+    due_date: <date>
+  expected_benefits:
+  - benefit: <benefit>
+    metric: <metric>
+    baseline: unknown
+    target: <target>
+    owner: <owner>
+  stop_conditions:
+  - <condition that should stop or pause the project>
+business_model_and_revenue:
+  business_model: <transaction | subscription | sponsorship | service | retail margin | hybrid | internal benefits>
+  value_propositions:
+  - segment: <segment>
+    value: <measurable value>
+    proof: <evidence or hypothesis>
+  revenue_streams:
+  - name: <revenue stream>
+    payer: <payer>
+    pricing_basis: <basis>
+    unit_price: unknown
+    volume: unknown
+    collection_timing: unknown
+    gross_margin_target: unknown
+    status: hypothesis
+  pricing_rules:
+    discount_approval_threshold: <threshold>
+    tax_included: unknown
+    refund_policy: unknown
+  cost_structure:
+    fixed_costs: []
+    variable_costs: []
+    contingency_percent: unknown
+  financial_targets:
+    revenue: unknown
+    gross_profit: unknown
+    break_even_date: unknown
+    maximum_budget: unknown
+    cash_required: unknown
+  funding_sources:
+  - <internal capital | sponsor | grant | customer prepayment | investor | credit | other>
+scope_and_delivery:
+  in_scope:
+  - <deliverable>
+  out_of_scope:
+  - <explicit exclusion>
+  deliverables:
+  - id: D-001
+    name: <deliverable>
+    owner: <owner>
+    acceptance_criteria:
+    - <criterion>
+    target_date: <date>
+  workstreams:
+  - id: WS-01
+    name: <workstream>
+    lead: <lead>
+    objective: <objective>
+    dependencies: []
+  delivery_method: <predictive | agile | hybrid | stage_gate | event_production>
+  milestones:
+  - name: <milestone>
+    date: <date>
+    entry_criteria: []
+    exit_criteria: []
+    approver: <approver>
+  external_dependencies: []
+  constraints:
+  - <budget, deadline, regulation, venue, technology, team, supply>
+governance_and_people:
+  authorized_approvers:
+    go_no_go:
+    - <person>
+    budget:
+    - <person>
+    commercial:
+    - <person>
+    legal:
+    - <person or counsel>
+    security_and_data:
+    - <person>
+    launch:
+    - <person>
+  steering_committee: []
+  decision_rights:
+  - decision: <decision>
+    accountable: <role>
+    consulted: []
+    deadline_sla: <time>
+  team_roles:
+  - role: <role>
+    person: unassigned
+    capacity: unknown
+    source: internal
+  meeting_cadence:
+    executive: monthly
+    project_control: weekly
+    delivery: <weekly or daily>
+    risk_review: monthly
+  escalation_thresholds:
+  - <threshold>
+budget_schedule_and_resources:
+  budget_status: not baselined
+  budget_lines:
+  - workstream: <workstream>
+    estimate: unknown
+    committed: '0'
+    actual: '0'
+    forecast_at_completion: unknown
+    owner: <owner>
+  management_reserve: unknown
+  schedule_status: not baselined
+  critical_deadlines: []
+  resource_constraints: []
+  procurement_items:
+  - item: <item>
+    required_by: <date>
+    estimated_cost: unknown
+    sourcing_method: unknown
+    owner: <owner>
+risk_quality_legal_security:
+  top_risks:
+  - risk: <risk>
+    probability: medium
+    impact: high
+    owner: <owner>
+    response: <response>
+    trigger: <trigger>
+  quality_objectives:
+  - objective: <quality objective>
+    metric: <metric>
+    target: <target>
+  legal_and_regulatory:
+  - <requirement or unknown>
+  contracts_needed: []
+  data_classes:
+  - public
+  - internal
+  - confidential
+  - restricted
+  personal_or_sensitive_data:
+  - <type or none>
+  security_requirements:
+  - <requirement>
+  health_and_safety_requirements:
+  - <requirement or none>
+  insurance_requirements:
+  - unknown
+commercial_and_stakeholders:
+  stakeholders:
+  - name_or_group: <stakeholder>
+    interest: <interest>
+    influence: high
+    engagement: <approach>
+    owner: <owner>
+  go_to_market_channels: []
+  sales_or_sponsorship_pipeline: []
+  communications_assets: []
+  approved_public_claims: []
+  prohibited_or_unverified_claims: []
+measurement_and_reporting:
+  north_star_metric: <metric>
+  kpis:
+  - name: <KPI>
+    formula: <formula>
+    baseline: unknown
+    target: <target>
+    frequency: weekly
+    owner: <owner>
+    source: <source>
+  dashboard_audiences:
+  - sponsor
+  - project manager
+  - workstream leads
+  status_tolerance:
+    schedule: <days or percent>
+    cost: <percent>
+    scope: no unapproved change
+    quality: <threshold>
+  benefit_review_dates: []
+agent_configuration:
+  registry: project_business_agent_registry.yaml
+  enabled_squads:
+  - universal_project_core
+  additional_overlays: []
+  disabled_agents: []
+  default_external_action_mode: draft_only
+  default_approval_mode: human_required
+  startup_bridge_enabled: false
+  software_bridge_enabled: false
