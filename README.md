@@ -4,13 +4,30 @@
 
 Clarify completely (D1–D10) → then execute via **Codex → Kimi → native** experts, with progressive references, preflight/done gates, and no-MVP quality bar.
 
-## Install (npm)
+## Install
+
+### From GitHub (works now)
+
+```bash
+npm install -g github:vaqif14/route3-skill
+```
+
+Or without global install:
+
+```bash
+npx github:vaqif14/route3-skill
+# same as: npx route3-skill install
+```
+
+### From npm registry
 
 ```bash
 npm install -g route3-skill
 ```
 
-Or one-shot:
+(Requires the package to be published to npmjs; if `npm publish` fails with 403, create an npm **Automation** token with 2FA and publish from this repo.)
+
+One-shot after registry publish:
 
 ```bash
 npx route3-skill install
