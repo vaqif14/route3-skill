@@ -10,13 +10,15 @@ Clarify completely (D1–D10) → then execute via **Codex → Kimi → native**
 
 ```bash
 npm install -g github:vaqif14/route3-skill
+route3-skill install
 ```
 
-Or without global install:
+`postinstall` auto-copies the skill into Claude/Cursor dirs; if your environment skips lifecycle scripts:
 
 ```bash
 npx github:vaqif14/route3-skill
-# same as: npx route3-skill install
+# or after global install:
+route3-skill install
 ```
 
 ### From npm registry
