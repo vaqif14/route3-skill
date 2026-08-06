@@ -6,54 +6,46 @@ Clarify completely (D1–D10) → then execute via **Codex → Kimi → native**
 
 ## Install
 
-### From GitHub (works now)
-
 ```bash
 npm install -g github:vaqif14/route3-skill
 route3-skill install
 ```
 
-`postinstall` auto-copies the skill into Claude/Cursor dirs; if your environment skips lifecycle scripts:
-
-```bash
-npx github:vaqif14/route3-skill
-# or after global install:
-route3-skill install
-```
-
-### From npm registry
-
-```bash
-npm install -g route3-skill
-```
-
-(Requires the package to be published to npmjs; if `npm publish` fails with 403, create an npm **Automation** token with 2FA and publish from this repo.)
-
-One-shot after registry publish:
-
-```bash
-npx route3-skill install
-```
-
-This copies the skill + agent roster to:
+This installs the CLI and copies Route3 into:
 
 | Tool | Paths |
 |---|---|
 | Claude Code | `~/.claude/skills/route3`, `~/.claude/agents/route3` |
 | Cursor | `~/.cursor/skills/route3`, `~/.cursor/agents/route3` |
 
+One-shot (no global CLI):
+
+```bash
+npx github:vaqif14/route3-skill
+```
+
 Update:
 
 ```bash
-npm update -g route3-skill
+npm update -g github:vaqif14/route3-skill
+route3-skill install
 ```
 
 Uninstall:
 
 ```bash
+route3-skill uninstall
 npm uninstall -g route3-skill
-# or
-npx route3-skill uninstall
+```
+
+### npmjs registry (optional)
+
+Package name: `route3-skill`. Publishing requires an npm token that can publish
+(Automation token + 2FA). Until then, use the GitHub install above.
+
+```bash
+npm install -g route3-skill
+route3-skill install
 ```
 
 ## Use

@@ -7,8 +7,7 @@
     "route3-skill": "bin/route3-skill.js"
   },
   "scripts": {
-    "postinstall": "sh bin/postinstall.sh",
-    "preuninstall": "sh bin/preuninstall.sh",
+    "postinstall": "node \"$(dirname \"$npm_package_json\")/bin/route3-skill.js\" install --quiet || node bin/route3-skill.js install --quiet || true",
     "test": "node bin/route3-skill.js install --dry-run"
   },
   "files": [
