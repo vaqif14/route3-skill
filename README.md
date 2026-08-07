@@ -60,7 +60,8 @@ Flow: **ask all material questions → you confirm → build** (Codex first, Kim
 
 ## What's included
 
-- `skill/SKILL.md` + `references/` (clarify-then-execute, slim-v3, boss-discipline, grill, backends, …)
+- `skill/SKILL.md` + `references/` (clarify-then-execute, slim-v3, boss-discipline, factory-contract, grill, backends, …)
+- Opt-in factory: `init-run.sh` / `check-stage.sh` / `context-pack.sh` / `verify-slice.sh` (default path stays slim-v3 standard)
 - `skill/scripts/` — `check-preflight.sh`, `route-slice.sh`, `check-plan-done.sh`, …
 - `skill/teams/` — startup / project / halal / enterprise / agency playbooks
 - `agents/` — `route3-*` expert agent definitions (incl. `route3-notebooklm-expert`)

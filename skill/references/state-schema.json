@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "route3-factory-state-v1",
+  "title": "Route3 factory STATE.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "path",
+    "stage",
+    "created_at",
+    "updated_at",
+    "artifacts",
+    "slices"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_id": { "type": "string", "minLength": 8 },
+    "repo_root": { "type": "string" },
+    "base_sha": { "type": ["string", "null"] },
+    "path": { "enum": ["trivial", "standard", "factory"] },
+    "stage": {
+      "enum": [
+        "init",
+        "research",
+        "product",
+        "architecture",
+        "plan",
+        "slice",
+        "final_verify",
+        "done",
+        "paused"
+      ]
+    },
+    "plan_path": { "type": "string" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "research_skipped": { "type": "boolean" },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path", "digest", "status"],
+        "properties": {
+          "path": { "type": "string" },
+          "digest": { "type": ["string", "null"] },
+          "status": { "enum": ["missing", "draft", "VALIDATED", "STALE"] }
+        }
+      }
+    },
+    "human_approvals": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "actor": { "type": "string" },
+          "digest": { "type": "string" },
+          "at": { "type": "string" }
+        }
+      }
+    },
+    "slices": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "enum": [
+              "ready",
+              "dispatched",
+              "built",
+              "verified",
+              "reviewed",
+              "accepted",
+              "STALE",
+              "blocked"
+            ]
+          },
+          "brief_digest": { "type": ["string", "null"] },
+          "verify_digest": { "type": ["string", "null"] },
+          "context_digest": { "type": ["string", "null"] },
+          "route_primary": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "security_triggers": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -1,36 +1,39 @@
 #!/usr/bin/env bash
-# Hard gate: ROUTE_DECISION must come from route-slice.sh AND boss must have
-# dispatched a builder (not self-write). See references/boss-discipline.md.
-#
-# Callers: SKILL.md hard rule #13; check-plan-done.sh; boss-discipline.md;
-#          native-primary.md (after route-slice).
-#
-# Usage:
-#   assert-build-route.sh [PLAN.md] [--require-dispatch]
-# Exit 0 = ok. Exit 1 = ASSERT FAIL (do not BUILD / do not claim done).
+# Hard gate: ROUTE_DECISION from route-slice.sh + optional BUILDER_DISPATCH.
+# Usage: assert-build-route.sh [PLAN.md] [--require-dispatch] [--run RUN_ID]
 set -euo pipefail
 
 PLAN=""
 REQUIRE_DISPATCH=0
+RUN_ID=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --require-dispatch) REQUIRE_DISPATCH=1; shift ;;
-    -*) echo "unknown flag: $1" >&2; exit 2 ;;
-    *) PLAN="$1"; shift ;;
+    --run)
+      RUN_ID="$2"; shift 2 ;;
+    -*)
+      echo "unknown flag: $1" >&2; exit 2 ;;
+    *)
+      PLAN="$1"; shift ;;
   esac
 done
 
 if [[ -z "$PLAN" ]]; then
-  for c in .workflow/route3/PLAN.md .workflow/PLAN.md PLAN.md; do
-    if [[ -f "$c" ]]; then PLAN="$c"; break; fi
-  done
+  if [[ -n "$RUN_ID" && -f ".workflow/route3/runs/$RUN_ID/05-PLAN.md" ]]; then
+    PLAN=".workflow/route3/runs/$RUN_ID/05-PLAN.md"
+  else
+    for c in .workflow/route3/PLAN.md .workflow/PLAN.md PLAN.md; do
+      if [[ -f "$c" ]]; then PLAN="$c"; break; fi
+    done
+  fi
 fi
 
 LOG=".workflow/route3/ROUTE_LAST.txt"
+[[ -n "$RUN_ID" ]] && LOG=".workflow/route3/runs/$RUN_ID/ROUTE_LAST.txt"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [[ -z "${PLAN}" || ! -f "$PLAN" ]]; then
-  echo "ASSERT FAIL: PLAN missing — create .workflow/route3/PLAN.md"
+  echo "ASSERT FAIL: PLAN missing"
   exit 1
 fi
 
@@ -40,7 +43,6 @@ if grep -Eq 'status=SKIPPED_TRIVIAL' "$PLAN"; then
 fi
 
 fail=()
-
 primary=$(grep -Eo 'ROUTE_DECISION:.*primary=(codex|kimi|native)' "$PLAN" | tail -1 \
   | grep -Eo 'primary=(codex|kimi|native)' | cut -d= -f2 || true)
 if [[ -z "$primary" ]]; then
@@ -108,7 +110,7 @@ if [[ ${#fail[@]} -gt 0 ]]; then
   exit 1
 fi
 
-echo "ASSERT OK: primary=${primary:-unknown} plan=$PLAN"
+echo "ASSERT OK: primary=${primary:-unknown} plan=$PLAN log=$LOG"
 if [[ -z "$dispatch_line" ]]; then
   echo "WARN: BUILDER_DISPATCH not yet logged — required before check-plan-done.sh"
 fi

@@ -94,7 +94,37 @@ Mid-build dead assumption → stop, re-clarify that dim; never quiet redesign.
 ## After ship (mandatory)
 
 ```bash
-~/.claude/skills/route3/scripts/check-plan-done.sh
+$(dirname skill)/scripts/check-plan-done.sh  # resolve from install
 ```
 
 Exit 1 → not done.
+
+
+## Risk paths + factory (opt-in)
+
+See `factory-contract.md`. After clarify, set:
+
+```text
+FACTORY: class=trivial|standard|factory reason=…
+```
+
+| class | Flow |
+|---|---|
+| trivial | `--trivial` done; guarded `TRIVIAL_REASON:` |
+| standard (default) | pipeline above |
+| factory | `init-run.sh --path factory` → `check-stage` product/architecture/plan → per-slice `BRIEF` → `context-pack.sh` → `route-slice.sh --run --slice` → BUILD → `verify-slice.sh` → reviewer → `check-plan-done.sh --factory --run` |
+
+Stages are **VALIDATED** by scripts. Exactly one human pre-code gate: `PLAN_APPROVAL`.
+No mid-loop human stage approvals (overnight-safe). No FINAL PR in unattended spine.
+
+```bash
+scripts/init-run.sh --path factory
+scripts/check-stage.sh --run "$RUN_ID" product
+scripts/check-stage.sh --run "$RUN_ID" architecture
+scripts/check-stage.sh --run "$RUN_ID" plan
+scripts/check-stage.sh --run "$RUN_ID" slice --slice 001
+scripts/context-pack.sh --run "$RUN_ID" --slice 001
+scripts/route-slice.sh --probe --run "$RUN_ID" --slice 001
+scripts/verify-slice.sh --run "$RUN_ID" --slice 001
+scripts/check-plan-done.sh --factory --run "$RUN_ID"
+```

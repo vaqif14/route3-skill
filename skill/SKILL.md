@@ -25,10 +25,12 @@ Claude Code=`Agent`. Ops/smoke under `/route3` is not a boss exception.
 
 ## Iron law
 
-**Clarify completely → then execute.**  
+**Clarify completely → then execute** (standard or factory).  
 Any concrete non-trivial task: scan ambiguities (D1–D10), ask every remaining
 material question, package Goal/AC, wait for confirm, run
 `scripts/check-preflight.sh`. Exit 1 → keep clarifying. **Never code first.**
+High-risk / multi-slice → `FACTORY: class=factory` + `init-run.sh` (see
+`factory-contract.md`). Default stays slim-v3 standard.
 
 Progressive disclosure — load depth only when the step needs it:
 
@@ -52,6 +54,7 @@ Progressive disclosure — load depth only when the step needs it:
 | Before BUILD | `scripts/check-preflight.sh` |
 | Before "done" | `scripts/check-plan-done.sh` |
 | Overnight flap | `routing-resilience.md` |
+| Factory (opt-in high-risk / multi-slice) | `factory-contract.md` + `scripts/init-run.sh` |
 
 ## Domain routing (decide yourself; mixed → split)
 
@@ -68,10 +71,11 @@ Progressive disclosure — load depth only when the step needs it:
 
 | Mode | Spine |
 |---|---|
-| **Build** | clarify D1–D10 → preflight → Codex→Kimi→native → review → boss |
+| **Build (standard)** | clarify D1–D10 → preflight → Codex→Kimi→native → review → boss |
+| **Build (factory)** | opt-in: `FACTORY: class=factory` → init-run → VALIDATED stages → slice BRIEF → verify-slice → review |
 | **Domain** | same clarify gate + playbook + evidence grades |
 | **Design-image** | clarify + design-analyst → build → visual check |
-| **Overnight** | clarify at queue time → 5h run → `MORNING_REPORT.md` |
+| **Overnight** | clarify at queue time → 5h run → `MORNING_REPORT.md` (no mid-loop human stage gates) |
 
 ## Default spine
 

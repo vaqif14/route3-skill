@@ -79,10 +79,26 @@ Quota death never shrinks AC and never licenses boss self-write.
 ## Enforcement scripts
 
 ```bash
-~/.claude/skills/route3/scripts/route-slice.sh --probe   # before BUILD
-~/.claude/skills/route3/scripts/assert-build-route.sh    # after ROUTE_DECISION logged
-~/.claude/skills/route3/scripts/assert-build-route.sh --require-dispatch  # before done
-~/.claude/skills/route3/scripts/check-plan-done.sh       # requires BUILDER_DISPATCH
+scripts/route-slice.sh --probe   # before BUILD
+scripts/assert-build-route.sh    # after ROUTE_DECISION logged
+scripts/assert-build-route.sh --require-dispatch  # before done
+scripts/check-plan-done.sh       # requires BUILDER_DISPATCH
 ```
 
 If assert fails → stop. Fix route/dispatch. Do not self-write to "unblock".
+
+
+## Factory authority matrix
+
+| Action | Boss | Specialist / script |
+|---|---|---|
+| `init-run.sh`, gate scripts | yes | — |
+| Record observed STATE transitions | yes | check-stage / verify-slice |
+| Author PRODUCT / ARCHITECTURE content | **no** | researcher / architect |
+| Dispatch Codex/Kimi/Task builders | yes | — |
+| Rescue-fix failing verify (edit src to green) | **no** | dispatch improver / builder |
+| Write reviewer verdict | **no** | route3-reviewer |
+| Human `PLAN_APPROVAL` | broker only | **user** |
+| Self-mark stage APPROVED | **no** | stages are VALIDATED only |
+
+Mechanical `context-pack.sh` is allowed. Choosing product/architecture decisions is not.
