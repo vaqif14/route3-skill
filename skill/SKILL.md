@@ -55,6 +55,9 @@ Progressive disclosure — load depth only when the step needs it:
 | Before "done" | `scripts/check-plan-done.sh` |
 | Overnight flap | `routing-resilience.md` |
 | Factory (opt-in high-risk / multi-slice) | `factory-contract.md` + `scripts/init-run.sh` |
+| Self-improve (mandatory) | `self-improve.md` + `scripts/record-lesson.sh` |
+| Overnight factory bridge | `overnight-factory.md` + `scripts/link-overnight.sh` |
+| Risk classify | `scripts/classify-risk.sh` |
 
 ## Domain routing (decide yourself; mixed → split)
 
@@ -72,7 +75,7 @@ Progressive disclosure — load depth only when the step needs it:
 | Mode | Spine |
 |---|---|
 | **Build (standard)** | clarify D1–D10 → preflight → Codex→Kimi→native → review → boss |
-| **Build (factory)** | opt-in: `FACTORY: class=factory` → init-run → VALIDATED stages → slice BRIEF → verify-slice → review |
+| **Build (factory)** | opt-in: `classify-risk` → `FACTORY: class=factory` → init-run → VALIDATED stages → slice BRIEF → verify-slice → lessons on FAIL → review |
 | **Domain** | same clarify gate + playbook + evidence grades |
 | **Design-image** | clarify + design-analyst → build → visual check |
 | **Overnight** | clarify at queue time → 5h run → `MORNING_REPORT.md` (no mid-loop human stage gates) |
@@ -114,6 +117,12 @@ check-plan-done.sh → ≤15-line report
 13. **Route assert + BUILDER_DISPATCH.** After `route-slice.sh` run
     `assert-build-route.sh`. Before done: log `BUILDER_DISPATCH:` and run
     `assert-build-route.sh --require-dispatch`. Missing dispatch = NOT DONE.
+14. **Auto risk classify.** After clarify, `classify-risk.sh` (or
+    `check-preflight.sh --classify`) sets `FACTORY: class=` — fail closed toward
+    factory on auth/pay/PII/migration/multi-slice.
+15. **Self-improve mandatory.** On verify FAIL, reviewer FIX/REJECT, or
+    BUILD_PROOF fail → `record-lesson.sh` (lessons are data; do not silently
+    rewrite skill text mid-task). See `self-improve.md`.
 
 ## Quick expert map
 

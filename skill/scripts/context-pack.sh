@@ -76,6 +76,32 @@ for f in files:
         print(f"- {f} (missing)")
 PY
   echo
+  echo "## ACTIVE LESSONS (last 5)"
+  python3 -c '
+import json, os
+path = ".workflow/route3/lessons/LESSONS.jsonl"
+if not os.path.isfile(path):
+    print("(none)")
+else:
+    active = []
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+        except Exception:
+            continue
+        if o.get("status") == "active":
+            active.append(o)
+    active = active[-5:]
+    if not active:
+        print("(none)")
+    else:
+        for o in active:
+            print("- %s: %s — %s" % (o.get("id"), o.get("title"), (o.get("reason") or "")[:120]))
+'
+  echo
   echo "## PRIOR VERIFY"
   PREV=$(ls -1 "$RUN_DIR/slices" 2>/dev/null | sort | awk -v s="$SLICE" '$0<s {p=$0} END{print p+0}')
   # list previous VERIFY.md if any
@@ -94,7 +120,7 @@ state_path, slice_id, digest = sys.argv[1:4]
 s = json.load(open(state_path, encoding="utf-8"))
 sl = s.setdefault("slices", {}).setdefault(slice_id, {})
 sl["context_digest"] = digest
-s["updated_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+s["updated_at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 tmp = state_path + ".tmp"
 json.dump(s, open(tmp, "w", encoding="utf-8"), indent=2)
 open(tmp, "a", encoding="utf-8").write("\n")

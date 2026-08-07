@@ -2,6 +2,7 @@
 # Run BRIEF verify: commands; write generated VERIFY.md evidence.
 # Usage: verify-slice.sh --run RUN_ID --slice NNN
 # Exit 0 all pass | 1 fail | 2 bad args
+# Presets in verify: list: lint | tsc | test | test:unit (resolved before allowlist)
 set -euo pipefail
 
 RUN_ID=""; SLICE=""
@@ -19,6 +20,7 @@ RUN_DIR=".workflow/route3/runs/$RUN_ID"
 BRIEF="$RUN_DIR/slices/$SLICE/BRIEF.md"
 OUT="$RUN_DIR/slices/$SLICE/VERIFY.md"
 STATE="$RUN_DIR/STATE.json"
+ROOT_SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
 [[ -f "$BRIEF" ]] || { echo "missing BRIEF" >&2; exit 1; }
 
 # Extract verify commands (yaml-ish list under verify:)
@@ -47,13 +49,25 @@ for line in lines:
 PY
 )
 
-
 if [[ ${#CMDS[@]} -eq 0 ]]; then
   echo "verify-slice FAIL: no verify: commands in BRIEF" >&2
   exit 1
 fi
 
-# Allowlist prefixes (min effort safety)
+resolve_preset() {
+  case "$1" in
+    lint) echo "npm run lint" ;;
+    tsc) echo "npx tsc --noEmit" ;;
+    test) echo "npm test" ;;
+    test:unit)
+      # prefer npm run test -- --run; smoke may not have package.json — keep as npm test fallback at run time
+      echo "npm run test -- --run"
+      ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# Allowlist prefixes (min effort safety) — checked AFTER preset resolve
 ALLOW_RE='^(npm |npx |pnpm |yarn |node |python3 |pytest |vitest |cargo |go test|dotnet |make |bundle exec |tsc|eslint)'
 
 BASE_SHA=$(git rev-parse HEAD 2>/dev/null || echo unknown)
@@ -69,18 +83,32 @@ PASS=0; FAIL=0
   echo
 } > "$OUT.tmp"
 
-for cmd in "${CMDS[@]}"; do
+for raw in "${CMDS[@]}"; do
+  cmd=$(resolve_preset "$raw")
+  # test:unit soft-fallback if npm run test fails with missing script — handled at execute
   if ! [[ "$cmd" =~ $ALLOW_RE ]]; then
-    echo "BLOCKED_CMD: $cmd (not allowlisted)" >> "$OUT.tmp"
+    echo "BLOCKED_CMD: $raw -> $cmd (not allowlisted)" >> "$OUT.tmp"
     FAIL=$((FAIL+1))
     continue
   fi
-  echo "## CMD: $cmd" >> "$OUT.tmp"
+  echo "## CMD: $raw" >> "$OUT.tmp"
+  if [[ "$raw" != "$cmd" ]]; then
+    echo "resolved: $cmd" >> "$OUT.tmp"
+  fi
   start=$(date +%s)
   set +e
-  # capture limited output
   out=$(bash -lc "$cmd" 2>&1 | tail -n 40)
   code=$?
+  # test:unit fallback to npm test
+  if [[ "$raw" == "test:unit" && "$code" -ne 0 ]]; then
+    out2=$(bash -lc "npm test" 2>&1 | tail -n 40)
+    code2=$?
+    if [[ "$code2" -eq 0 ]]; then
+      out="$out"$'\n'"# fallback npm test"$'\n'"$out2"
+      code=0
+      echo "resolved_fallback: npm test" >> "$OUT.tmp"
+    fi
+  fi
   set -e
   end=$(date +%s)
   echo "exit: $code" >> "$OUT.tmp"
@@ -110,7 +138,7 @@ s = json.load(open(state_path, encoding="utf-8"))
 sl = s.setdefault("slices", {}).setdefault(slice_id, {})
 sl["verify_digest"] = digest
 sl["state"] = "verified" if fail == "0" else "blocked"
-s["updated_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+s["updated_at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 tmp = state_path + ".tmp"
 with open(tmp, "w", encoding="utf-8") as f:
     json.dump(s, f, indent=2); f.write("\n")
@@ -118,4 +146,20 @@ os.replace(tmp, state_path)
 PY
 
 echo "VERIFY written: $OUT (pass=$PASS fail=$FAIL)"
-[[ "$FAIL" -eq 0 ]]
+
+if [[ "$FAIL" -ne 0 ]]; then
+  if [[ -x "$ROOT_SCRIPTS/record-lesson.sh" ]]; then
+    set +e
+    "$ROOT_SCRIPTS/record-lesson.sh" \
+      --title "verify-slice FAIL slice=$SLICE" \
+      --reason "VERIFY_STATUS FAIL pass=$PASS fail=$FAIL" \
+      --run "$RUN_ID" \
+      --slice "$SLICE" \
+      --after "$OUT" \
+      --tag verify-fail \
+      --source verify-slice >/dev/null 2>&1 || true
+    set -e
+  fi
+  exit 1
+fi
+exit 0

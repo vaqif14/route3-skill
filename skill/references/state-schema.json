@@ -15,11 +15,29 @@
     "slices"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "run_id": { "type": "string", "minLength": 8 },
-    "repo_root": { "type": "string" },
-    "base_sha": { "type": ["string", "null"] },
-    "path": { "enum": ["trivial", "standard", "factory"] },
+    "schema_version": {
+      "const": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "repo_root": {
+      "type": "string"
+    },
+    "base_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "path": {
+      "enum": [
+        "trivial",
+        "standard",
+        "factory"
+      ]
+    },
     "stage": {
       "enum": [
         "init",
@@ -33,19 +51,45 @@
         "paused"
       ]
     },
-    "plan_path": { "type": "string" },
-    "created_at": { "type": "string" },
-    "updated_at": { "type": "string" },
-    "research_skipped": { "type": "boolean" },
+    "plan_path": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "research_skipped": {
+      "type": "boolean"
+    },
     "artifacts": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["path", "digest", "status"],
+        "required": [
+          "path",
+          "digest",
+          "status"
+        ],
         "properties": {
-          "path": { "type": "string" },
-          "digest": { "type": ["string", "null"] },
-          "status": { "enum": ["missing", "draft", "VALIDATED", "STALE"] }
+          "path": {
+            "type": "string"
+          },
+          "digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "missing",
+              "draft",
+              "VALIDATED",
+              "STALE"
+            ]
+          }
         }
       }
     },
@@ -54,9 +98,15 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "actor": { "type": "string" },
-          "digest": { "type": "string" },
-          "at": { "type": "string" }
+          "actor": {
+            "type": "string"
+          },
+          "digest": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          }
         }
       }
     },
@@ -77,16 +127,44 @@
               "blocked"
             ]
           },
-          "brief_digest": { "type": ["string", "null"] },
-          "verify_digest": { "type": ["string", "null"] },
-          "context_digest": { "type": ["string", "null"] },
-          "route_primary": { "type": ["string", "null"] }
+          "brief_digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verify_digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route_primary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
     "security_triggers": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
+    },
+    "overnight_item_id": {
+      "type": [
+        "string",
+        "null"
+      ]
     }
   }
 }

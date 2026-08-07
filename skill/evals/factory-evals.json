@@ -1,0 +1,26 @@
+{
+  "version": "1.3.1",
+  "description": "Shell assertions for factory/self-improve gates (see scripts/eval-factory.sh)",
+  "cases": [
+    {
+      "id": "buried-yes-to-all",
+      "name": "Buried yes to all must not pass preflight",
+      "expect": "preflight_fail"
+    },
+    {
+      "id": "factory-requires-run",
+      "name": "check-plan-done --factory without --run fails",
+      "expect": "fail"
+    },
+    {
+      "id": "high-risk-classify-factory",
+      "name": "Auth/payment plan classifies as factory",
+      "expect": "FACTORY class=factory"
+    },
+    {
+      "id": "trivial-without-reason",
+      "name": "SKIPPED_TRIVIAL without TRIVIAL_REASON fails preflight",
+      "expect": "preflight_fail"
+    }
+  ]
+}

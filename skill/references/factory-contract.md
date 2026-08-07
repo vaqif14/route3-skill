@@ -14,11 +14,21 @@ No new permanent agents in v1. No 5 human mid-gates. No FINAL PR automation.
 | `standard` | default 80% features | clarify → plan approval → slice → verify → review → done |
 | `factory` | multi-slice **or** high-risk (auth/pay/PII/migration/multi-module) | run-dir + stages below |
 
-Set once after clarify:
+Set once after clarify (prefer script):
+
+```bash
+scripts/classify-risk.sh --write PLAN.md
+# or: scripts/check-preflight.sh PLAN.md --classify
+```
 
 ```text
 FACTORY: class=trivial|standard|factory reason=…
+RISK_SIGNALS: …
 ```
+
+Rules: trivial ONLY if `SKIPPED_TRIVIAL` + `TRIVIAL_REASON` and no high-risk tokens;
+factory on auth|2fa|payment|pii|refund|rbac|tenant|migration|prisma schema|
+multi-slice|slices:N≥2|security|production; else standard. Fail closed toward safer.
 
 `class=factory` without `init-run.sh` → treat as standard until run exists.
 
@@ -115,3 +125,20 @@ reviewer verdicts, or self-approve stages. See `boss-discipline.md`.
 
 product-designer / program-designer agents · Temporal/UI · exhaustive call-graphs ·
 event-sourced TRACE · domain forced through factory · unattended FINAL PR
+
+
+## Stale invalidation (mandatory)
+
+```bash
+scripts/invalidate-stale.sh --run "$RUN_ID"
+```
+
+Recomputes digests for `01-RESEARCH` / `02-PRODUCT` / `03-ARCHITECTURE` / `05-PLAN`
+vs `STATE.artifacts`. Mismatch → artifact `STALE` + all slices `STALE`. Exit 1 if
+any upstream STALE. `check-plan-done.sh --factory` runs this and fails closed.
+
+## Lessons (mandatory self-improve)
+
+On verify FAIL / reviewer FIX|REJECT / BUILD_PROOF fail → `record-lesson.sh`.
+See `self-improve.md`. Factory done requires lesson attempt when any slice blocked
+or VERIFY FAIL without `LESSON_RECORDED`.

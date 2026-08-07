@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # Block BUILD until clarify→execute preflight passes.
-# Usage: check-preflight.sh [PLAN.md] [--write-plan]
+# Usage: check-preflight.sh [PLAN.md] [--write-plan] [--classify]
 #   Default: writes PASS to .workflow/route3/PREFLIGHT_LAST.txt (does NOT mutate PLAN)
 #   --write-plan: also append PREFLIGHT PASS into PLAN (legacy compat)
+#   --classify: after PASS, run classify-risk.sh --write
 # Exit 0 = may BUILD. Exit 1 = keep clarifying. Exit 2 = bad args.
 set -euo pipefail
 
 PLAN=""
 WRITE_PLAN=0
+CLASSIFY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --write-plan) WRITE_PLAN=1; shift ;;
+    --classify) CLASSIFY=1; shift ;;
     -*)
       echo "unknown flag: $1" >&2
       exit 2 ;;
@@ -40,6 +43,10 @@ if grep -Eq 'status=SKIPPED_TRIVIAL' "$PLAN"; then
     exit 1
   fi
   echo "PREFLIGHT OK: trivial skip ($PLAN)"
+  if [[ "$CLASSIFY" -eq 1 ]]; then
+    ROOT="$(cd "$(dirname "$0")" && pwd)"
+    "$ROOT/classify-risk.sh" --write "$PLAN" || true
+  fi
   exit 0
 fi
 
@@ -73,5 +80,12 @@ echo "PREFLIGHT OK: $PLAN — BUILD allowed (marker: .workflow/route3/PREFLIGHT_
 
 if [[ "$WRITE_PLAN" -eq 1 ]] && ! grep -Eq '^PREFLIGHT: *PASS' "$PLAN"; then
   printf '\nPREFLIGHT: PASS at=%s\n' "$ts" >> "$PLAN"
+fi
+
+if [[ "$CLASSIFY" -eq 1 ]]; then
+  ROOT="$(cd "$(dirname "$0")" && pwd)"
+  if [[ -x "$ROOT/classify-risk.sh" ]]; then
+    "$ROOT/classify-risk.sh" --write "$PLAN"
+  fi
 fi
 exit 0

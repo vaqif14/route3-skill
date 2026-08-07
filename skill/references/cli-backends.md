@@ -104,7 +104,12 @@ Legacy: "night-shift", "yatanda bitir".
 - Scripts: `scripts/night-shift-swarm.sh` (`start` = queue only;
   `run-loop` needs `NIGHT_SHIFT_AUTO=1` + `NIGHT_SHIFT_I_UNDERSTAND=1`)
 - Per item: FREEZE → PLAN → CODE → DIFF_REVIEW → VERIFY → DELIVER
+- **Factory:** if `classify-risk` → `class=factory`, queue item **MUST** include
+  `factory_run_id` (set via `init-run.sh --overnight-item` or `link-overnight.sh`)
+- Human `PLAN_APPROVAL` **before** the window only; mid-loop no human stage gates
+- STALE / `invalidate-stale` fail → item `status=paused_for_morning`
 - Default pack: `offline-friendly`; same ladder — Codex → Kimi → native if both OPEN
-- Morning: `.workflow/MORNING_REPORT.md` + MEMANTO high-signal
+- Morning: `.workflow/MORNING_REPORT.md` from slice terminals + overnight lessons + MEMANTO high-signal
+- Detail: `overnight-factory.md`
 - Digest habits: `qm-harness-ops.md` § Overnight digest
 - Max 1 clarifying question per overnight window

@@ -45,10 +45,101 @@ fi
 
 missing=()
 warn=()
+ROOT="$(cd "$(dirname "$0")" && pwd)"
 has() { grep -Eq "$1" "$PLAN"; }
 has_preflight() {
   has 'PREFLIGHT:\s*PASS' && return 0
   [[ -f .workflow/route3/PREFLIGHT_LAST.txt ]] && grep -Eq 'PREFLIGHT: PASS' .workflow/route3/PREFLIGHT_LAST.txt
+}
+
+# Self-improve: VERIFY FAIL without LESSON_RECORDED
+# exit codes from helper: 0 ok, 2 factory missing, 3 full warn
+check_lesson_for_verify_fail() {
+  local rc
+  set +e
+  python3 -c '
+import json, glob, os, sys, re
+plan, run_id, mode = sys.argv[1:4]
+need = False
+text = open(plan, encoding="utf-8").read() if os.path.isfile(plan) else ""
+if re.search(r"VERIFY_STATUS:\s*FAIL", text):
+    need = True
+if run_id:
+    for path in glob.glob(".workflow/route3/runs/%s/slices/*/VERIFY.md" % run_id):
+        if re.search(r"VERIFY_STATUS:\s*FAIL", open(path, encoding="utf-8").read()):
+            need = True
+if not need:
+    sys.exit(0)
+
+def has_lesson():
+    if re.search(r"LESSON_RECORDED", text):
+        return True
+    if run_id:
+        tr = ".workflow/route3/runs/%s/TRACE.jsonl" % run_id
+        if os.path.isfile(tr) and "LESSON_RECORDED" in open(tr, encoding="utf-8").read():
+            return True
+        jl = ".workflow/route3/lessons/LESSONS.jsonl"
+        if os.path.isfile(jl):
+            for line in open(jl, encoding="utf-8"):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    o = json.loads(line)
+                except Exception:
+                    continue
+                if o.get("run_id") == run_id:
+                    return True
+    return False
+
+if has_lesson():
+    sys.exit(0)
+sys.exit(2 if mode == "factory" else 3)
+' "$PLAN" "${RUN_ID:-}" "$MODE"
+  rc=$?
+  set -e
+  if [[ "$rc" -eq 2 ]]; then
+    missing+=("LESSON_RECORDED after VERIFY FAIL (self-improve mandatory)")
+  elif [[ "$rc" -eq 3 ]]; then
+    warn+=("VERIFY FAIL without LESSON_RECORDED (self-improve)")
+  fi
+}
+
+check_factory_blocked_lessons() {
+  [[ -n "$RUN_ID" ]] || return 0
+  STATE=".workflow/route3/runs/$RUN_ID/STATE.json"
+  [[ -f "$STATE" ]] || return 0
+  local rc
+  set +e
+  python3 -c '
+import json, os, sys
+state_path, rid = sys.argv[1:3]
+s = json.load(open(state_path, encoding="utf-8"))
+blocked = [k for k,v in (s.get("slices") or {}).items() if v.get("state") == "blocked"]
+if not blocked:
+    sys.exit(0)
+tr = ".workflow/route3/runs/%s/TRACE.jsonl" % rid
+if os.path.isfile(tr) and "LESSON_RECORDED" in open(tr, encoding="utf-8").read():
+    sys.exit(0)
+jl = ".workflow/route3/lessons/LESSONS.jsonl"
+if os.path.isfile(jl):
+    for line in open(jl, encoding="utf-8"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+        except Exception:
+            continue
+        if o.get("run_id") == rid:
+            sys.exit(0)
+sys.exit(1)
+' "$STATE" "$RUN_ID"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    missing+=("lesson attempt required when slice blocked")
+  fi
 }
 
 case "$MODE" in
@@ -70,6 +161,7 @@ case "$MODE" in
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF:")
     has 'PONYTAIL:' || warn+=("PONYTAIL:")
     has 'PRODUCT:' || warn+=("PRODUCT:")
+    check_lesson_for_verify_fail
     ;;
   factory)
     STATE=".workflow/route3/runs/$RUN_ID/STATE.json"
@@ -78,9 +170,8 @@ case "$MODE" in
     has '^BUILDER_DISPATCH:' || missing+=("BUILDER_DISPATCH:")
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF:")
     has '^PLAN_APPROVAL: *(approved|continue|yes_to_all)\b' || missing+=("PLAN_APPROVAL human line")
-    # all slices verified
     if [[ -f "$STATE" ]]; then
-      python3 - "$STATE" <<'PY' || missing+=("factory slices not all verified/accepted")
+      python3 -c '
 import json, sys
 s = json.load(open(sys.argv[1], encoding="utf-8"))
 slices = s.get("slices") or {}
@@ -88,16 +179,26 @@ if not slices:
     sys.exit(1)
 bad = [k for k,v in slices.items() if v.get("state") not in ("verified","reviewed","accepted")]
 sys.exit(1 if bad else 0)
-PY
-      # no STALE artifacts
-      python3 - "$STATE" <<'PY' || missing+=("STALE artifacts in STATE")
+' "$STATE" || missing+=("factory slices not all verified/accepted")
+      python3 -c '
 import json, sys
 s = json.load(open(sys.argv[1], encoding="utf-8"))
 arts = s.get("artifacts") or {}
 stale = [k for k,v in arts.items() if v.get("status") == "STALE"]
 sys.exit(1 if stale else 0)
-PY
+' "$STATE" || missing+=("STALE artifacts in STATE")
     fi
+    if [[ -x "$ROOT/invalidate-stale.sh" ]]; then
+      set +e
+      "$ROOT/invalidate-stale.sh" --run "$RUN_ID"
+      inv_rc=$?
+      set -e
+      if [[ "$inv_rc" -ne 0 ]]; then
+        missing+=("invalidate-stale STALE (re-validate upstream)")
+      fi
+    fi
+    check_lesson_for_verify_fail
+    check_factory_blocked_lessons
     ;;
 esac
 
@@ -108,7 +209,6 @@ if [[ ${#missing[@]} -gt 0 ]]; then
 fi
 
 if [[ "$MODE" == full || "$MODE" == factory ]]; then
-  ROOT="$(cd "$(dirname "$0")" && pwd)"
   ASSERT_ARGS=("$PLAN" --require-dispatch)
   [[ -n "$RUN_ID" ]] && ASSERT_ARGS+=(--run "$RUN_ID")
   if [[ -x "$ROOT/assert-build-route.sh" ]]; then
@@ -120,7 +220,7 @@ if [[ "$MODE" == full || "$MODE" == factory ]]; then
 fi
 
 echo "OK: mode=$MODE plan=$PLAN${RUN_ID:+ run=$RUN_ID}"
-if [[ "$MODE" == full && ${#warn[@]} -gt 0 ]]; then
+if [[ "$MODE" == full || "$MODE" == factory ]] && [[ ${#warn[@]} -gt 0 ]]; then
   echo "WARN: recommended missing: ${warn[*]}"
 fi
 exit 0

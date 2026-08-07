@@ -102,3 +102,15 @@ If assert fails → stop. Fix route/dispatch. Do not self-write to "unblock".
 | Self-mark stage APPROVED | **no** | stages are VALIDATED only |
 
 Mechanical `context-pack.sh` is allowed. Choosing product/architecture decisions is not.
+
+
+## Self-improve authority
+
+| Action | Boss |
+|---|---|
+| `record-lesson.sh` / `lesson-rollback.sh` / `lesson-list.sh` | **yes** |
+| Inject active lessons via `context-pack.sh` | yes (script) |
+| Silently edit `SKILL.md` / references from a lesson mid-task | **no** |
+| Propose skill text change for user/eval gate | yes (broker only) |
+
+Lessons are data under `.workflow/route3/lessons/`. See `self-improve.md`.

@@ -111,7 +111,7 @@ def sha(path):
             h.update(chunk)
     return h.hexdigest()
 
-ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 art_map = {
     "research": "01-RESEARCH.md",
     "product": "02-PRODUCT.md",

@@ -118,6 +118,7 @@ Stages are **VALIDATED** by scripts. Exactly one human pre-code gate: `PLAN_APPR
 No mid-loop human stage approvals (overnight-safe). No FINAL PR in unattended spine.
 
 ```bash
+scripts/classify-risk.sh --write PLAN.md   # after clarify
 scripts/init-run.sh --path factory
 scripts/check-stage.sh --run "$RUN_ID" product
 scripts/check-stage.sh --run "$RUN_ID" architecture
@@ -126,5 +127,8 @@ scripts/check-stage.sh --run "$RUN_ID" slice --slice 001
 scripts/context-pack.sh --run "$RUN_ID" --slice 001
 scripts/route-slice.sh --probe --run "$RUN_ID" --slice 001
 scripts/verify-slice.sh --run "$RUN_ID" --slice 001
+# on FAIL: record-lesson.sh auto (or manual)
+scripts/record-lesson.sh --title "…" --reason "…" --run "$RUN_ID" --slice 001
+scripts/invalidate-stale.sh --run "$RUN_ID"
 scripts/check-plan-done.sh --factory --run "$RUN_ID"
 ```
