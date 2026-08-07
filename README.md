@@ -2,7 +2,7 @@
 
 **Route3** — boss orchestrator skill for Claude Code and Cursor. Clarify completely, then execute via Codex → Kimi → native experts. Never self-writes product code.
 
-`v1.3.2` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
+`v1.4.0` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
 
 ## What it is / is not
 
@@ -129,7 +129,9 @@ Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · factory: [docs/FACTOR
 
 All under `skill/scripts/`.
 
-## Agents (`route3-*`)
+## Agents (`route3-*`) — 32 total
+
+Core writers/reviewers plus **17 curated specialists** from [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) (thin adapters — not the full 362-skill tree). Full catalog: [agents/README.md](agents/README.md) · selection analysis: [docs/CLAUDE_SKILLS_INTEGRATION.md](docs/CLAUDE_SKILLS_INTEGRATION.md).
 
 | Agent | Role |
 |---|---|
@@ -148,6 +150,23 @@ All under `skill/scripts/`.
 | `route3-notebooklm-expert` | NotebookLM / NBLM research → clarify |
 | `route3-docs-writer` | Docs |
 | `route3-skill-user` | Skill application |
+| `route3-ship-gate` | Final ship checklist — never product code |
+| `route3-worktree` | Git worktree / branch isolation |
+| `route3-handoff` | Expert CONTEXT packages |
+| `route3-zero-hallucination` | Evidence grades for claims |
+| `route3-adversarial` | Second-pass persona red-team |
+| `route3-spec` | Spec-driven AC → `.workflow` |
+| `route3-observability` | Metrics / logs / traces / SLO |
+| `route3-perf` | Perf / CWV / hot-path |
+| `route3-a11y` | WCAG audit |
+| `route3-migration` | Risky migration architect |
+| `route3-ci` | CI/CD pipeline design |
+| `route3-pr` | PR draft — no auto-push |
+| `route3-tdd` | TDD red-green |
+| `route3-incident` | Incident command / runbooks |
+| `route3-product` | Factory PRODUCT — AC/scope only |
+| `route3-deeplink-research` | Deep multi-source research |
+| `route3-smm` | SMM drafts — dual-approve, never auto-publish |
 
 ## Domain teams
 
@@ -169,6 +188,8 @@ Playbooks in `skill/teams/`:
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, truth precedence, gates, non-goals |
 | [docs/FACTORY.md](docs/FACTORY.md) | Risk classify, stages, BRIEF, stale, overnight |
 | [docs/SELF-IMPROVE.md](docs/SELF-IMPROVE.md) | Mandatory lessons, rollback, MEMANTO |
+| [docs/CLAUDE_SKILLS_INTEGRATION.md](docs/CLAUDE_SKILLS_INTEGRATION.md) | Curated alirezarezvani skill → agent analysis |
+| [agents/README.md](agents/README.md) | Full `route3-*` agent catalog |
 | [skill/references/README.md](skill/references/README.md) | Progressive reference index |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
@@ -184,7 +205,7 @@ Also: `eval-clarify.sh`, `eval-triggers.sh` + JSON fixtures under `skill/evals/`
 ## Roadmap
 
 - **Now:** filesystem-first factory, auto risk classify, stale gates, mandatory lessons, overnight bridge.
-- **Deferred:** Temporal runtime, control-panel UI, auto-merge / FINAL PR automation, new product/program-designer agents (until evals justify them).
+- **Deferred:** Temporal runtime, control-panel UI, auto-merge / FINAL PR automation, heavy program-designer / full c-level packs (see CLAUDE_SKILLS_INTEGRATION DEFER/REJECT).
 
 ## License
 

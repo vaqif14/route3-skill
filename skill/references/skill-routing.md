@@ -43,6 +43,29 @@ Drop `fit≤2` unless pinned.
 | **built-in** `ponytail-ladder.md` | Every coding Build (default full) | Non-code Q&A; never to cut a11y/security |
 | **built-in** `product-engineering.md` | Feature/UX/API design before inventing | Trivial typo/rename |
 
+
+### Ship / quality specialists (map → route3 agents)
+| Skill | Use when | Route3 agent | Reject when |
+|---|---|---|---|
+| `ship-gate` | Pre-deploy / done checklist | `route3-ship-gate` | Mid-slice WIP with no AC |
+| `tdd-guide` | Tests-first / red-green | `route3-tdd` (or test-engineer if tests-only) | Pure CSS density pass |
+| `a11y-audit` | WCAG audit of UI slice | `route3-a11y` | Non-UI API-only |
+| `grill-me` | User `/grill-me` or stress-test plan | built-in `matt-grill-flow.md` + skill | Discoverable repo questions |
+| `git-worktree-manager` | Parallel factory/agent isolation | `route3-worktree` | Single-branch trivial edit |
+| `handoff` | Session/expert switch package | `route3-handoff` | Same-agent continue |
+| `zero-hallucination-coder` | High-stakes claim grounding | `route3-zero-hallucination` | Typo/trivial |
+| `adversarial-reviewer` | Second-pass persona red-team | `route3-adversarial` | Primary review (use `route3-reviewer`) |
+| `spec-driven-workflow` | AC → executable spec before code | `route3-spec` | Code already approved |
+| `observability-designer` / `slo-architect` | Metrics/logs/traces/SLO | `route3-observability` | No runtime surface |
+| `performance-profiler` | CWV / hot-path | `route3-perf` | No perf budget |
+| `migration-architect` | Risky zero-downtime migration | `route3-migration` | Trivial additive column (db-expert) |
+| `ci-cd-pipeline-builder` | CI workflow design | `route3-ci` | App feature code |
+| `pr-review-expert` / `changelog-generator` | PR body after Approve | `route3-pr` | Before plan approval; no auto-push |
+| `incident-commander` / `runbook-generator` | Live incident / runbook | `route3-incident` | Feature BUILD |
+| `product-discovery` / `product-strategist` | Factory PRODUCT stage | `route3-product` | Architecture/code asks |
+| `deep-research` | Multi-source evidence grades | `route3-deeplink-research` | NotebookLM URL (notebooklm-expert) |
+| `social-content` / `ad-creative` | SMM/ad drafts | `route3-smm` | Auto-publish asks (refuse) |
+
 ### Content / growth
 | Skill | Use when |
 |---|---|

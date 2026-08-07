@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-08-08
+
+### Added
+
+- Curated integration of [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills): analysis in `docs/CLAUDE_SKILLS_INTEGRATION.md` (INCLUDE/DEFER/REJECT per category)
+- 17 thin `route3-*` agents filling gaps (ship-gate, worktree, handoff, zero-hallucination, adversarial, spec, observability, perf, a11y, migration, ci, pr, tdd, incident, product, deeplink-research, smm)
+- `agents/README.md` full catalog
+- Skill-routing rows for new process/quality/marketing specialists
+
+### Changed
+
+- Agent roster 15 → 32; README / ARCHITECTURE / SKILL quick expert map updated
+- Package version **1.4.0**
+
 ## [1.3.2] - 2026-08-07
 
 ### Changed

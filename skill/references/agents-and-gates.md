@@ -29,6 +29,23 @@ Agents live in `~/.claude/agents/route3/` (Cursor agent registry mirrors names).
 | `route3-researcher` | Support | Docs/web/codebase; may learn new skills |
 | `route3-notebooklm-expert` | Support | NotebookLM connect → research → clarify package |
 | `route3-docs-writer` | Support | Runbooks/release notes from approved diffs |
+| `route3-ship-gate` | Quality | Final ship checklist — never writes |
+| `route3-worktree` | Ops | Git worktree + branch isolation |
+| `route3-handoff` | Support | CONTEXT/handoff packages |
+| `route3-zero-hallucination` | Support | Evidence grades for claims |
+| `route3-adversarial` | Quality | Second-pass persona red-team |
+| `route3-spec` | Architecture | Spec/AC under `.workflow` only |
+| `route3-observability` | Platform | Metrics/logs/traces/SLO |
+| `route3-perf` | Quality | Perf / CWV / hot-path |
+| `route3-a11y` | Quality | WCAG 2.2 audit |
+| `route3-migration` | Backend | Risky migration architect |
+| `route3-ci` | Platform | CI/CD pipeline design |
+| `route3-pr` | Support | PR draft — no auto-push |
+| `route3-tdd` | Quality | TDD red-green in allowed paths |
+| `route3-incident` | Ops | Incident command + runbooks |
+| `route3-product` | Product | Factory PRODUCT — AC/scope only |
+| `route3-deeplink-research` | Support | Deep multi-source research |
+| `route3-smm` | Marketing | Dual-approve draft-only SMM |
 
 **Separation of duties:** planner ≠ builder ≠ validator ≠ approver.
 Reviewer ≠ writer, always.
@@ -52,6 +69,24 @@ Skills are NOT chosen here — see `skill-routing.md`.
 | docs/runbook/release | docs-writer |
 | unknown lib / "necə işləyir" | researcher |
 | NotebookLM / NBLM / notebook URL | notebooklm-expert |
+| ship / deploy checklist | ship-gate |
+| worktree / parallel branch | worktree |
+| handoff package | handoff |
+| evidence / no hallucination | zero-hallucination |
+| red-team / persona review | adversarial |
+| spec-first / executable AC | spec |
+| SLO / metrics / tracing | observability |
+| perf / CWV / slow | perf |
+| WCAG / a11y audit | a11y |
+| risky migration / expand-contract | migration |
+| CI workflow / GitHub Actions | ci |
+| open PR / PR body | pr |
+| TDD / red-green | tdd |
+| incident / sev / outage | incident |
+| product AC / scope (factory) | product |
+| deep research (non-NBLM) | deeplink-research |
+| SMM / Meta ads draft | smm |
+
 
 ## STATUS contract
 

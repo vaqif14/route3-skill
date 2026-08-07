@@ -7,7 +7,7 @@ Route3 is a **boss orchestrator** packaged as an installable skill. The main age
 | Component | Location | Role |
 |---|---|---|
 | Skill entry | `skill/SKILL.md` | Progressive disclosure, iron laws, mode spines |
-| Agents | `agents/route3-*.md` | Expert definitions installed under `~/.claude|cursor/agents/route3/` |
+| Agents | `agents/route3-*.md` (32) | Expert definitions installed under `~/.claude|cursor/agents/route3/` — core + curated specialists. Catalog: [../agents/README.md](../agents/README.md). Selection: [CLAUDE_SKILLS_INTEGRATION.md](CLAUDE_SKILLS_INTEGRATION.md) |
 | Scripts | `skill/scripts/*.sh` | Preflight, risk, factory stages, route, verify, lessons, done |
 | References | `skill/references/*` | Contracts loaded on demand (see [references/README.md](../skill/references/README.md)) |
 | Domain teams | `skill/teams/*.md` | Startup / project / halal / enterprise / agency playbooks |
@@ -82,7 +82,7 @@ Never auto-`APPROVED` overnight. Overnight freezes the plan at queue time; mid-l
 |---|---|---|
 | **Boss** (main `/route3` thread) | Clarify, classify, init-run, dispatch, run gate scripts, record lessons, relay debate | Author product/arch content, write product code, rescue-fix verify, self-approve stages, invent primary |
 | **Writer** (Codex / Kimi / `route3-*`) | Edit allowed files per BRIEF / ownership | Set reviewer verdicts or APPROVED gates |
-| **Reviewer** (`route3-reviewer`, security-auditor) | Independent FIX / PASS / REJECT | Be the same agent that wrote the slice |
+| **Reviewer** (`route3-reviewer`, `route3-security-auditor`, `route3-adversarial`, `route3-ship-gate`) | Independent FIX / PASS / REJECT / ship checklist | Be the same agent that wrote the slice; never write product code |
 
 `assert-build-route.sh` + `BUILDER_DISPATCH` enforce that the chosen primary was actually invoked. Missing dispatch ⇒ NOT DONE.
 
@@ -106,7 +106,8 @@ Memanto failures are ignored. Skill rewrites are never driven automatically from
 - Temporal / durable workflow runtime
 - Control-panel UI
 - Auto-merge or unattended FINAL PR
-- New permanent **product-designer** / **program-designer** agents (until evals justify them)
+- Full upstream skill trees / all 362 alirezarezvani skills as agents (curated thin adapters only — see CLAUDE_SKILLS_INTEGRATION.md)
+- Heavy **program-designer** / c-level advisory packs (thin `route3-product` covers factory PRODUCT AC/scope)
 - Forcing all domain-team work through factory
 - Event-sourced TRACE that overrides STATE
 - Exhaustive call-graph artifacts as stage requirements

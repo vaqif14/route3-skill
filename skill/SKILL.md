@@ -141,6 +141,23 @@ check-plan-done.sh → ≤15-line report
 | Unknown | `route3-researcher` |
 | Docs | `route3-docs-writer` |
 | Screenshot → brief | `route3-design-analyst` |
+| Ship checklist | `route3-ship-gate` |
+| Worktree / branch | `route3-worktree` |
+| Handoff CONTEXT | `route3-handoff` |
+| Evidence grades | `route3-zero-hallucination` |
+| Red-team pass | `route3-adversarial` |
+| Spec before code | `route3-spec` |
+| Observability / SLO | `route3-observability` |
+| Perf / CWV | `route3-perf` |
+| A11y WCAG | `route3-a11y` |
+| Risky migration | `route3-migration` |
+| CI/CD design | `route3-ci` |
+| PR draft | `route3-pr` |
+| TDD red-green | `route3-tdd` |
+| Incident / runbook | `route3-incident` |
+| Product AC/scope | `route3-product` |
+| Deep research | `route3-deeplink-research` |
+| SMM drafts | `route3-smm` |
 
 ## Decision priority
 
