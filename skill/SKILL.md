@@ -58,6 +58,8 @@ Progressive disclosure — load depth only when the step needs it:
 | Overnight flap | `routing-resilience.md` |
 | Factory (opt-in high-risk / multi-slice) | `factory-contract.md` + `scripts/init-run.sh` |
 | Self-improve (mandatory) | `self-improve.md` + `scripts/record-lesson.sh` |
+| Evidence loops / retries (improver ≤2) | `loop-contract.md` |
+| Failure layer diagnosis (harness/loop/graph) | `qm-harness-ops.md` (full map: `docs/ARCHITECTURE.md`) |
 | Overnight factory bridge | `overnight-factory.md` + `scripts/link-overnight.sh` |
 | Risk classify | `scripts/classify-risk.sh` |
 
@@ -130,6 +132,13 @@ check-plan-done.sh → ≤15-line report
     DISPATCH_PROMPT per `dispatch-prompt-contract.md`
     (`EXISTS`|`MISSING_TYPE`|`USE_EXISTING`). SaaS/no-MVP/ideal-final.
     Boss does not meddle in writer internals.
+17. **Product may refuse.** Factory PRODUCT returns `VERDICT: BUILD|BUILD_SMALLER|
+    PARK|SCRAP|NEEDS_MORE_INPUT`. `SCRAP`/`PARK` → architecture must **not** run
+    without a recorded human `PRODUCT_OVERRIDE:` line. Enforced by `check-stage.sh`;
+    see `factory-contract.md`. Refusal never lowers the SaaS bar on BUILD.
+18. **Diagnose layer first.** Before touching the spine, classify the failure as
+    **harness** (cannot operate) / **loop** (flaky, repeats) / **graph** (branching,
+    approvals) — `qm-harness-ops.md`. Vocabulary only; never a second spine.
 
 ## Quick expert map
 

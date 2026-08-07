@@ -1,5 +1,5 @@
 {
-  "version": "1.3.1",
+  "version": "1.4.3",
   "description": "Shell assertions for factory/self-improve gates (see scripts/eval-factory.sh)",
   "cases": [
     {
@@ -21,6 +21,26 @@
       "id": "trivial-without-reason",
       "name": "SKIPPED_TRIVIAL without TRIVIAL_REASON fails preflight",
       "expect": "preflight_fail"
+    },
+    {
+      "id": "product-scrap-blocks-architecture",
+      "name": "product VERDICT: SCRAP without PRODUCT_OVERRIDE fails check-stage product",
+      "expect": "fail"
+    },
+    {
+      "id": "product-override-passes",
+      "name": "Same SCRAP artifact + human PRODUCT_OVERRIDE validates product stage",
+      "expect": "STAGE OK"
+    },
+    {
+      "id": "ownership-overlap-fails",
+      "name": "Overlapping OWNERSHIP globs fail check-ownership",
+      "expect": "OWNERSHIP FAIL"
+    },
+    {
+      "id": "verify-fail-needs-bound-lesson",
+      "name": "Factory done after VERIFY FAIL requires a bound lesson (no confidence-stop)",
+      "expect": "fail"
     }
   ]
 }

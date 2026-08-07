@@ -55,6 +55,42 @@ case "$STAGE" in
       grep -Eq 'PRODUCT:' "$PLAN" || fail+=("PRODUCT: missing in PLAN and no 02-PRODUCT.md")
       grep -Eq '^AC:|acceptance' "$PLAN" || fail+=("AC missing for product stage")
     fi
+    # Product verdict gate (factory-contract.md - Product verdict gate):
+    # SCRAP/PARK need a human PRODUCT_OVERRIDE line; NEEDS_MORE_INPUT never validates;
+    # missing VERDICT warns only (pre-1.4.3 runs stay green).
+    VPLAN=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("plan_path",""))' "$STATE")
+    [[ -f "$VPLAN" ]] || VPLAN="$RUN_DIR/05-PLAN.md"
+    set +e
+    verdict_out=$(python3 - "$RUN_DIR/02-PRODUCT.md" "$VPLAN" <<'PYV'
+import os, re, sys
+text = ""
+for path in sys.argv[1:]:
+    if path and os.path.isfile(path):
+        with open(path, encoding="utf-8") as fh:
+            text += fh.read() + "\n"
+verdicts = [v.upper() for v in re.findall(r"^[ \t]*VERDICT:[ \t]*([A-Za-z_]+)", text, re.M)]
+override = re.search(r"^[ \t]*PRODUCT_OVERRIDE:[ \t]*\S", text, re.M)
+if not verdicts:
+    print("WARN: product has no VERDICT: line (BUILD|BUILD_SMALLER|PARK|SCRAP|NEEDS_MORE_INPUT)")
+    sys.exit(0)
+refused = [v for v in verdicts if v in ("SCRAP", "PARK")]
+if refused and not override:
+    print("product VERDICT: %s refuses build - architecture blocked until a human records "
+          "'PRODUCT_OVERRIDE: approved by user at <ISO> reason=...' in PLAN or 02-PRODUCT.md" % refused[0])
+    sys.exit(1)
+if "NEEDS_MORE_INPUT" in verdicts:
+    print("product VERDICT: NEEDS_MORE_INPUT - clarify and re-run product stage (override does not apply)")
+    sys.exit(1)
+sys.exit(0)
+PYV
+)
+    verdict_rc=$?
+    set -e
+    if [[ "$verdict_rc" -ne 0 ]]; then
+      fail+=("$verdict_out")
+    elif [[ -n "$verdict_out" ]]; then
+      echo "STAGE $verdict_out"
+    fi
     ;;
   architecture)
     [[ -f "$RUN_DIR/03-ARCHITECTURE.md" ]] || fail+=("03-ARCHITECTURE.md missing")

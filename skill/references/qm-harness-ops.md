@@ -4,6 +4,18 @@ Source: [yc-software/qm](https://github.com/yc-software/qm) — multiplayer agen
 harness (Slack/web, scoped memory, multi-harness core). Patterns below are
 **orchestration policy for Route3**, not a QM install requirement.
 
+**Layer vocabulary:** this file is the **harness** layer (tools, state, backends,
+postures). Loop layer → `loop-contract.md`. Graph layer → `factory-contract.md` +
+`parallel-ownership.md`. Full mapping: `docs/ARCHITECTURE.md` § Harness / Loop / Graph.
+
+| Symptom | Layer | First move |
+|---|---|---|
+| Cannot operate (tool / creds / state / permission) | harness | fix this file's surfaces — not retries |
+| Almost works · flaky · repeats mistakes | loop | `loop-contract.md` evidence + stop rules |
+| Complex branching / specialists / approvals | graph | stage machine + ownership waves |
+
+Diagnostic vocabulary only — never a second spine.
+
 ## Why these patterns
 
 OmniRoute taught failover scoring. QM teaches **how a boss should operate** once

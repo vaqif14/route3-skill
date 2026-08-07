@@ -28,7 +28,37 @@ Missing user / job-to-be-done / success metric → ask; propose defaults.
 - Stop for `plan_approval` / stage VALIDATED as boss directs.
 
 ## Output contract
-Artifact path · AC · non-goals · open decisions · STATUS.
+Artifact path · AC · non-goals · open decisions · VERDICT · STATUS.
+
+### VERDICT (mandatory, exactly one line)
+
+```text
+VERDICT: BUILD | BUILD_SMALLER | PARK | SCRAP | NEEDS_MORE_INPUT
+```
+
+Sharp-problem axes — report each with a confidence (`high|med|low|UNKNOWN`):
+
+| Axis | Ask |
+|---|---|
+| Workaround | what do users do today instead, and what does it cost them? |
+| Frequency | how often does the pain actually hit? |
+| Willingness-to-pay | would someone pay for / prioritise this over the workaround? |
+
+Bar: recommend BUILD only for a **≥3x improvement** over the current workaround — not
+a marginal nicety. `UNKNOWN` is a valid answer; **never fabricate evidence** (cite
+MEMANTO / repo path, or write `UNKNOWN`).
+
+Any verdict other than `BUILD` / `BUILD_SMALLER` requires a reason line:
+
+```text
+VERDICT: PARK
+VERDICT_REASON: workaround is near-free and frequency evidence is UNKNOWN; revisit after 20 support tickets
+```
+
+VERDICT is about **whether to build**, not how well. On `BUILD` / `BUILD_SMALLER` the
+Route3 engineering bar stays SaaS production-complete — `BUILD_SMALLER` means fewer AC,
+never MVP stubs. Refusal handling / human `PRODUCT_OVERRIDE:` →
+`skill/references/factory-contract.md` § Product verdict gate.
 
 ## Standard status line (mandatory)
 End the final report with exactly one line: `STATUS: COMPLETED | NEEDS_CLARIFICATION | NEEDS_APPROVAL | BLOCKED | FAILED`.

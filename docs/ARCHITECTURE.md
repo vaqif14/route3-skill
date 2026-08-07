@@ -15,6 +15,26 @@ Route3 is a **boss orchestrator** packaged as an installable skill. The main age
 | Run artifacts | `.workflow/route3/runs/<run-id>/` | Factory STATE, stages, slices, TRACE (per repo) |
 | Lessons | `.workflow/route3/lessons/` | Append-only self-improve log |
 
+## Harness / Loop / Graph
+
+Diagnostic vocabulary for **where** an agent system fails, mapped onto what Route3 already ships.
+
+| Layer | Question | Route3 surface |
+|---|---|---|
+| **Harness** | Can it operate at all? | skill scripts, `agents/route3-*`, `STATE.json`, `route-slice.sh`, security postures (`skill/references/qm-harness-ops.md`) |
+| **Loop** | Does it converge on evidence? | `verify-slice.sh`, `BUILD_PROOF`, reviewer ≠ writer, improver ≤ 2, lessons (`skill/references/loop-contract.md`) |
+| **Graph** | Which next step is allowed? | factory stage machine, ownership waves, gate branches (`factory-contract.md`, `parallel-ownership.md`) |
+
+### Diagnose before fix
+
+| Symptom | Layer | First move |
+|---|---|---|
+| Cannot operate — missing tool / creds / state / permission | **harness** | fix tools, state, permissions; more retries will not help |
+| Almost works · flaky · repeats the same mistake | **loop** | tighten evidence + stop rules; record a bound lesson |
+| Complex branching · specialists · approvals tangled | **graph** | fix stage / wave / gate edges, not the prompt |
+
+This is a **diagnostic vocabulary, NOT a second spine** — Route3 keeps one spine (clarify → route → build → verify → review → done). Do not create parallel frameworks, engines, or workflow files from these three words.
+
 ## Standard vs factory data flow
 
 ### Standard (default)

@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-08-08
+
+### Added
+
+- `skill/references/loop-contract.md` — evidence-loop contract (Trigger · Goal · Evidence · Feedback · Stop rules · improver ≤2 · escalate to human); **loop on evidence, never on agent confidence**
+- `docs/ARCHITECTURE.md` § Harness / Loop / Graph — diagnostic vocabulary + "diagnose before fix" triage (harness = cannot operate, loop = flaky/repeats, graph = branching/approvals); explicitly **not** a second spine
+- Graph discipline in `parallel-ownership.md` (+ slice edge rule in `factory-contract.md`): real edge = consumes the prior artifact, diamond split/parallel/merge, barrier only for true fan-in, worktree only for real concurrent writers
+- Factory PRODUCT verdict: `VERDICT: BUILD | BUILD_SMALLER | PARK | SCRAP | NEEDS_MORE_INPUT` + sharp-problem axes (workaround · frequency · willingness-to-pay, ≥3x bar) and `VERDICT_REASON` in `agents/route3-product.md`
+- `check-stage.sh` product gate: `SCRAP`/`PARK` blocks architecture without a human `PRODUCT_OVERRIDE:` line; `NEEDS_MORE_INPUT` never validates; missing `VERDICT` warns only (backward compatible)
+- Hard rules 17 (**Product may refuse**) and 18 (**Diagnose layer first**)
+- Curated catalog rows for external [productmind-skills](https://github.com/ojiudezue/productmind-skills) `vet-a-feature` / `sharp-problem-test` — install + route only (CC BY-SA, never vendored)
+- Evals: product SCRAP blocks architecture, override validates, ownership overlap fails, VERIFY FAIL needs a bound lesson
+
+### Changed
+
+- Package version **1.4.3**
+- `qm-harness-ops.md` scoped as the **harness** layer with cross-links to loop / graph layers
+- `slc-or-mvp` / `scope-cutter` listed as startup/product-lane **optional only** — the Route3 engineering bar stays SaaS production-complete (scope cuts = fewer AC, never MVP stubs)
+
 ## [1.4.2] - 2026-08-08
 
 ### Added

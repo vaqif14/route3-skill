@@ -66,6 +66,20 @@ Drop `fit≤2` unless pinned.
 | `deep-research` | Multi-source evidence grades | `route3-deeplink-research` | NotebookLM URL (notebooklm-expert) |
 | `social-content` / `ad-creative` | SMM/ad drafts | `route3-smm` | Auto-publish asks (refuse) |
 
+### External product judgment (install + route only — never vendored)
+
+Source: [ojiudezue/productmind-skills](https://github.com/ojiudezue/productmind-skills) —
+**CC BY-SA**. Catalog + link + invoke only; never copy SKILL.md bodies into this repo.
+
+| Skill | Use when | Scope | Reject when |
+|---|---|---|---|
+| `vet-a-feature` | "Should we build this at all?" before architecture | factory PRODUCT / product lane | Trivial bug / UI slice — no product question |
+| `sharp-problem-test` | Pressure-test workaround · frequency · willingness-to-pay | factory PRODUCT / product lane | Problem already validated with cited evidence |
+| `slc-or-mvp` / `scope-cutter` | **Optional**, startup / product-lane scoping only | startup lane (**not** core Build catalog) | Any Route3 Build — engineering bar stays SaaS-complete; cuts mean fewer AC, never thinner quality |
+
+Feeds the `route3-product` `VERDICT:` line (`agents/route3-product.md`); the refusal
+gate lives in `factory-contract.md` § Product verdict gate.
+
 ### Content / growth
 | Skill | Use when |
 |---|---|

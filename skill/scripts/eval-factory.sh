@@ -55,5 +55,77 @@ c=$?
 set -e
 [[ "$c" -eq 1 ]] && ok "trivial-without-reason" || bad "trivial-without-reason (exit=$c)"
 
+# Case: product VERDICT: SCRAP blocks architecture without human override
+RUN=evalscrap
+"$SCR/init-run.sh" --path factory --plan PLAN_AUTH.md --run-id "$RUN" >/dev/null
+RD=".workflow/route3/runs/$RUN"
+cat > "$RD/02-PRODUCT.md" <<'P'
+# Product
+problem: duplicate of an existing finance export
+scope: none
+acceptance: n/a
+AC: none
+VERDICT: SCRAP
+VERDICT_REASON: users already get the same numbers from the finance page in two clicks
+P
+set +e
+out=$("$SCR/check-stage.sh" --run "$RUN" product 2>&1)
+c=$?
+set -e
+if [[ "$c" -eq 1 ]] && printf '%s' "$out" | grep -q 'refuses build'; then
+  ok "product-scrap-blocks-architecture"
+else
+  bad "product-scrap-blocks-architecture (exit=$c) $out"
+fi
+
+# Case: same refused artifact + recorded human override → VALIDATED
+printf '%s\n' "PRODUCT_OVERRIDE: approved by user at 2026-08-08T09:30:00Z reason=strategic bet" >> "$RD/02-PRODUCT.md"
+set +e
+out=$("$SCR/check-stage.sh" --run "$RUN" product 2>&1)
+c=$?
+set -e
+if [[ "$c" -eq 0 ]] && printf '%s' "$out" | grep -q 'STAGE OK'; then
+  ok "product-override-passes"
+else
+  bad "product-override-passes (exit=$c) $out"
+fi
+
+# Case: overlapping OWNERSHIP globs
+cat > PLAN_OWN.md <<'P'
+OWNERSHIP:
+  wave=1
+  route3-api-expert: src/features/orders/**
+  route3-ui-expert: src/features/orders/components/**
+P
+set +e
+out=$("$SCR/check-ownership.sh" PLAN_OWN.md 2>&1)
+c=$?
+set -e
+if [[ "$c" -eq 1 ]] && printf '%s' "$out" | grep -q 'OWNERSHIP FAIL'; then
+  ok "ownership-overlap-fails"
+else
+  bad "ownership-overlap-fails (exit=$c) $out"
+fi
+
+# Case: VERIFY FAIL requires a bound lesson (no confidence-stop)
+RUN2=evalloop
+cat > PLAN_LOOP.md <<'P'
+GOAL: loop gate fixture
+AC:
+- verify fail requires a bound lesson
+P
+"$SCR/init-run.sh" --path factory --plan PLAN_LOOP.md --run-id "$RUN2" >/dev/null
+mkdir -p ".workflow/route3/runs/$RUN2/slices/001"
+printf 'VERIFY_STATUS: FAIL\n' > ".workflow/route3/runs/$RUN2/slices/001/VERIFY.md"
+set +e
+out=$("$SCR/check-plan-done.sh" --factory --run "$RUN2" 2>&1)
+c=$?
+set -e
+if [[ "$c" -eq 1 ]] && printf '%s' "$out" | grep -q 'bound lesson'; then
+  ok "verify-fail-needs-bound-lesson"
+else
+  bad "verify-fail-needs-bound-lesson (exit=$c) $out"
+fi
+
 echo "EVAL_FACTORY: pass=$PASS fail=$FAIL"
 [[ "$FAIL" -eq 0 ]]

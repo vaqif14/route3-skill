@@ -25,6 +25,7 @@ Progressive disclosure for Route3. Load only what the current step needs (`SKILL
 | Factory (opt-in) | [factory-contract.md](factory-contract.md) |
 | Overnight ↔ factory | [overnight-factory.md](overnight-factory.md) |
 | Self-improve (mandatory) | [self-improve.md](self-improve.md) |
+| Evidence loops / retries | [loop-contract.md](loop-contract.md) |
 | STATE schema (machine) | [state-schema.json](state-schema.json) |
 | Legacy slim-v2 (compat) | [slim-v2-contract.md](slim-v2-contract.md) |
 

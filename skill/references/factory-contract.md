@@ -78,13 +78,42 @@ Legal forward: `init → research? → product → architecture → plan → sli
 | Stage | VALIDATED when |
 |---|---|
 | research | `01-RESEARCH.md` has EVIDENCE + findings; or skipped in STATE |
-| product | `02-PRODUCT.md` **or** PLAN `PRODUCT:` + AC list; min sections |
+| product | `02-PRODUCT.md` **or** PLAN `PRODUCT:` + AC list; min sections; verdict not `SCRAP`/`PARK`/`NEEDS_MORE_INPUT` (see below) |
 | architecture | `03-ARCHITECTURE.md`: services/modules, contracts, data, failures, security |
 | plan | `05-PLAN.md` or PLAN: slices listed + `PLAN_APPROVAL` human line |
 | slice | BRIEF digest frozen → route → dispatch → verify-slice PASS → reviewer |
 | final_verify | head-SHA integration commands PASS |
 
 Upstream digest change → downstream stages set `STALE` (must re-validate).
+
+**Edge rule (graph discipline):** a slice may depend on a prior slice only if it
+**consumes its artifact/data** (contract, schema, generated type). Ordering with no
+data flow is a fake dependency — run it in the same wave. Barrier (wait for the whole
+set) only for true fan-in: dedupe, compare, ship gate. See `parallel-ownership.md`
+§ Graph discipline.
+
+### Product verdict gate (product stage)
+
+`route3-product` **may refuse.** `02-PRODUCT.md` (or the PLAN `PRODUCT:` block) carries
+one `VERDICT:` line — `BUILD | BUILD_SMALLER | PARK | SCRAP | NEEDS_MORE_INPUT`
+(contract: `agents/route3-product.md`).
+
+| Verdict | product stage |
+|---|---|
+| `BUILD` / `BUILD_SMALLER` | VALIDATED (artifact rules still apply) |
+| `SCRAP` / `PARK` | **not** VALIDATED — architecture must not run |
+| `NEEDS_MORE_INPUT` | not VALIDATED — clarify, then re-run product |
+| missing | warn only (backward compatible with pre-1.4.3 runs) |
+
+Only a recorded **human** override passes a refusal, in PLAN or the product artifact:
+
+```text
+PRODUCT_OVERRIDE: approved by user at 2026-08-08T09:30:00Z reason=strategic bet, evidence pending
+```
+
+Boss may not write that line for the user (`boss-discipline.md`). Enforced by
+`check-stage.sh --run ID product`. The verdict decides *whether to build* — it never
+lowers the bar: `BUILD_SMALLER` means fewer AC, still SaaS production-complete.
 
 ## Slice BRIEF (required fields)
 

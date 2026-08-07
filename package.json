@@ -1,6 +1,6 @@
 {
   "name": "route3-skill",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Route3 multi-expert orchestrator + opt-in artifact factory (clarify D1\u2013D11, AGENT_MAP dispatch prompts, SaaS/no-MVP, self-improve lessons).",
   "main": "bin/route3-skill.js",
   "bin": {

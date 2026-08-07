@@ -35,6 +35,21 @@ Exit 1 → fix overlaps; do not dispatch.
 3. Wave 2+: only after wave 1 STATUS COMPLETED + boss check
 4. Improver owns FIX paths listed by reviewer — temporary exclusive lock
 
+## Graph discipline
+
+The wave plan is a **graph** of allowed next steps, not a to-do order.
+
+- **Real edge test:** step B may depend on step A **only if B consumes A's
+  artifact/data** (contract, schema, generated type, migration). Sequence without
+  data flow is a **fake dependency** → put both in the same wave.
+- **Diamond naming:** *split* (architect locks contracts / BRIEF) → *parallel work*
+  (ownership waves, disjoint globs) → *merge* (boss check + verify-slice + reviewer).
+- **Barrier only for true fan-in:** wait for the full set only when the merge step
+  genuinely needs everything — dedupe, compare, ship gate. Otherwise run a
+  wave/pipeline and let finished writers move on.
+- **Worktree only for real concurrency:** `route3-worktree` when parallel writers
+  actually write at the same time; same-branch sequential edits do not need one.
+
 ## Conflict protocol
 
 If two agents touched the same file anyway:
