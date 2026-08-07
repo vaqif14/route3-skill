@@ -1,29 +1,115 @@
 #!/usr/bin/env bash
-# Ensure PLAN ROUTE_DECISION was produced by route-slice.sh (not invented).
-# Compares primary= in PLAN to last ROUTE_DECISION from cache/log if present.
+# Hard gate: ROUTE_DECISION must come from route-slice.sh AND boss must have
+# dispatched a builder (not self-write). See references/boss-discipline.md.
+#
+# Callers: SKILL.md hard rule #13; check-plan-done.sh; boss-discipline.md;
+#          native-primary.md (after route-slice).
+#
+# Usage:
+#   assert-build-route.sh [PLAN.md] [--require-dispatch]
+# Exit 0 = ok. Exit 1 = ASSERT FAIL (do not BUILD / do not claim done).
 set -euo pipefail
-PLAN="${1:-.workflow/route3/PLAN.md}"
-CACHE="${2:-.workflow/route3/CLI_PROBE.txt}"
-LOG="${3:-.workflow/route3/ROUTE_LAST.txt}"
 
-if [[ ! -f "$PLAN" ]]; then
-  echo "ASSERT FAIL: PLAN missing"
+PLAN=""
+REQUIRE_DISPATCH=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --require-dispatch) REQUIRE_DISPATCH=1; shift ;;
+    -*) echo "unknown flag: $1" >&2; exit 2 ;;
+    *) PLAN="$1"; shift ;;
+  esac
+done
+
+if [[ -z "$PLAN" ]]; then
+  for c in .workflow/route3/PLAN.md .workflow/PLAN.md PLAN.md; do
+    if [[ -f "$c" ]]; then PLAN="$c"; break; fi
+  done
+fi
+
+LOG=".workflow/route3/ROUTE_LAST.txt"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [[ -z "${PLAN}" || ! -f "$PLAN" ]]; then
+  echo "ASSERT FAIL: PLAN missing — create .workflow/route3/PLAN.md"
   exit 1
 fi
 
-primary=$(grep -Eo 'ROUTE_DECISION:.*primary=(codex|kimi|native)' "$PLAN" | tail -1 | grep -Eo 'primary=(codex|kimi|native)' | cut -d= -f2 || true)
+if grep -Eq 'status=SKIPPED_TRIVIAL' "$PLAN"; then
+  echo "ASSERT OK: trivial skip ($PLAN)"
+  exit 0
+fi
+
+fail=()
+
+primary=$(grep -Eo 'ROUTE_DECISION:.*primary=(codex|kimi|native)' "$PLAN" | tail -1 \
+  | grep -Eo 'primary=(codex|kimi|native)' | cut -d= -f2 || true)
 if [[ -z "$primary" ]]; then
-  echo "ASSERT FAIL: no ROUTE_DECISION primary in PLAN — run route-slice.sh"
-  exit 1
+  fail+=("no ROUTE_DECISION primary in PLAN — run route-slice.sh and paste output")
 fi
 
-if [[ -f "$LOG" ]]; then
+if [[ ! -f "$LOG" ]]; then
+  fail+=("missing $LOG — run route-slice.sh (do not invent ROUTE_DECISION)")
+else
   logp=$(grep -Eo 'primary=(codex|kimi|native)' "$LOG" | tail -1 | cut -d= -f2 || true)
-  if [[ -n "$logp" && "$logp" != "$primary" ]]; then
-    echo "ASSERT FAIL: PLAN primary=$primary but route-slice log primary=$logp"
-    exit 1
+  if [[ -z "$logp" ]]; then
+    fail+=("$LOG has no primary=")
+  elif [[ -n "$primary" && "$logp" != "$primary" ]]; then
+    fail+=("PLAN primary=$primary but route-slice log primary=$logp")
   fi
 fi
 
-echo "ASSERT OK: primary=$primary"
+if grep -Eiq 'BOSS_SELF_WRITE:\s*(yes|true)|BUILDER_DISPATCH:.*\bboss-self\b|BUILDER_DISPATCH:.*via=boss' "$PLAN"; then
+  fail+=("boss self-write markers forbidden — see boss-discipline.md")
+fi
+
+if grep -Eiq 'continue yourself|boss will (code|implement|fix)|I (will|ll) (just )?(quickly )?(fix|implement)' "$PLAN"; then
+  fail+=("PLAN contains boss-as-writer wording — dispatch Codex/Kimi/Task instead")
+fi
+
+dispatch_line=$(grep -E '^BUILDER_DISPATCH:' "$PLAN" | tail -1 || true)
+if [[ "$REQUIRE_DISPATCH" -eq 1 || -n "$dispatch_line" ]]; then
+  if [[ -z "$dispatch_line" ]]; then
+    fail+=("missing BUILDER_DISPATCH: line — boss must log real dispatch (boss-discipline.md)")
+  else
+    echo "$dispatch_line" | grep -Eq 'primary=(codex|kimi|native)' \
+      || fail+=("BUILDER_DISPATCH must include primary=codex|kimi|native")
+    echo "$dispatch_line" | grep -Eq 'via=(codex-exec|kimi-cli|task|agent)' \
+      || fail+=("BUILDER_DISPATCH via= must be codex-exec|kimi-cli|task|agent (not boss)")
+    if [[ -n "$primary" ]]; then
+      dprimary=$(echo "$dispatch_line" | grep -Eo 'primary=(codex|kimi|native)' | head -1 | cut -d= -f2 || true)
+      if [[ -n "$dprimary" && "$dprimary" != "$primary" ]]; then
+        fail+=("BUILDER_DISPATCH primary=$dprimary != ROUTE_DECISION primary=$primary")
+      fi
+    fi
+    if [[ "$primary" == "native" ]] || echo "$dispatch_line" | grep -Eq 'primary=native'; then
+      echo "$dispatch_line" | grep -Eq 'agents=route3-[a-z0-9-]+' \
+        || fail+=("native BUILDER_DISPATCH must list agents=route3-… (Task/Agent dispatch)")
+    fi
+  fi
+fi
+
+if [[ "$REQUIRE_DISPATCH" -eq 1 && -n "$primary" && "$primary" != "native" ]]; then
+  case "$primary" in
+    codex)
+      echo "$dispatch_line" | grep -Eq 'via=codex-exec' \
+        || fail+=("primary=codex requires BUILDER_DISPATCH via=codex-exec")
+      ;;
+    kimi)
+      echo "$dispatch_line" | grep -Eq 'via=kimi-cli' \
+        || fail+=("primary=kimi requires BUILDER_DISPATCH via=kimi-cli")
+      ;;
+  esac
+fi
+
+if [[ ${#fail[@]} -gt 0 ]]; then
+  echo "ASSERT FAIL: $PLAN — do NOT self-write; fix route/dispatch"
+  for f in "${fail[@]}"; do echo "  - $f"; done
+  echo "HINT: $ROOT/scripts/route-slice.sh --probe && dispatch per BUILD_WITH"
+  exit 1
+fi
+
+echo "ASSERT OK: primary=${primary:-unknown} plan=$PLAN"
+if [[ -z "$dispatch_line" ]]; then
+  echo "WARN: BUILDER_DISPATCH not yet logged — required before check-plan-done.sh"
+fi
 exit 0

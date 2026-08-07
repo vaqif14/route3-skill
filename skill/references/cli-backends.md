@@ -61,12 +61,14 @@ Skip rung on 403 / usage limit / quota / billing. Last resort: Cursor Task
 ```
 0. Run scripts/route-slice.sh  (Codex first if sol=GREEN)
 1. Codex OPEN/MISSING/quota → Kimi if kimi=GREEN
-2. Both dead → native route3-* (continue yourself; identical AC)
-3. Mid-run Codex death → re-route via route-slice.sh --probe → Kimi → native
-4. Optional after both CLI dead: Gemini G1→G3 only if boss elects cascade
+2. Both dead → dispatch native route3-* via Task/Agent (identical AC; never boss-write)
+3. Mid-run Codex death → re-route via route-slice.sh --probe → Kimi → native experts
+4. Optional after both CLI dead: Gemini G1→G3 only if boss elects cascade (still not boss-write)
+5. Log BUILDER_DISPATCH; assert-build-route.sh [--require-dispatch]
 ```
 
-Never shrink AC when landing on native. Parity checklist: `native-primary.md`.
+Never shrink AC when landing on native. Never interpret failover as "boss codes".
+Parity: `native-primary.md` + `boss-discipline.md`.
 
 Apply 3-layer resilience + LKGP from `routing-resilience.md`. Log
 `ROUTE_DECISION` in PLAN.md. Never invent "done" after a quota kill.

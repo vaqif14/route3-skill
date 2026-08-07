@@ -58,6 +58,7 @@ kimi=$(grep -E "^kimi=" "$CACHE" 2>/dev/null | head -1 | cut -d= -f2 || echo OPE
 if [[ "$sol" == "GREEN" ]]; then
   echo "ROUTE_DECISION: primary=codex reason=mandatory_codex_first sol=GREEN"
   echo "BUILD_WITH: codex exec --model gpt-5.6-sol -s workspace-write -c model_reasoning_effort=high --skip-git-repo-check"
+  echo "BOSS_MUST: invoke BUILD_WITH then log BUILDER_DISPATCH: primary=codex via=codex-exec — never self-write"
   mkdir -p .workflow/route3 2>/dev/null || true
   echo "ROUTE_DECISION: primary=codex reason=mandatory_codex_first sol=GREEN" > .workflow/route3/ROUTE_LAST.txt 2>/dev/null || true
   exit 0
@@ -66,13 +67,15 @@ fi
 if [[ "$kimi" == "GREEN" ]]; then
   echo "ROUTE_DECISION: primary=kimi reason=codex_quota_or_open sol=$sol kimi=GREEN"
   echo "BUILD_WITH: kimi -m kimi-code/k3 -p \"…\" </dev/null"
+  echo "BOSS_MUST: invoke BUILD_WITH then log BUILDER_DISPATCH: primary=kimi via=kimi-cli — never self-write"
   mkdir -p .workflow/route3 2>/dev/null || true
   echo "ROUTE_DECISION: primary=kimi reason=codex_quota_or_open sol=$sol kimi=GREEN" > .workflow/route3/ROUTE_LAST.txt 2>/dev/null || true
   exit 0
 fi
 
 echo "ROUTE_DECISION: primary=native reason=codex_and_kimi_quota sol=$sol kimi=$kimi"
-echo "BUILD_WITH: native route3-* experts (identical AC; no apology)"
+echo "BUILD_WITH: Cursor Task / Claude Agent → route3-* experts (identical AC; no apology)"
+echo "BOSS_MUST: dispatch Task|Agent route3-* then log BUILDER_DISPATCH: primary=native via=task|agent agents=route3-… — NEVER boss-write"
 mkdir -p .workflow/route3 2>/dev/null || true
 echo "ROUTE_DECISION: primary=native reason=codex_and_kimi_quota sol=$sol kimi=$kimi" > .workflow/route3/ROUTE_LAST.txt 2>/dev/null || true
 exit 0

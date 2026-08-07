@@ -84,12 +84,12 @@ Mid-build dead assumption → stop, re-clarify that dim; never quiet redesign.
 1. Profile + MEMANTO → clarify rounds → package → wait.
 2. `check-preflight.sh`  
 3. Skill autodecide → `SKILL_ROUTE`  
-4. `route-slice.sh` (+ `assert-build-route.sh` optional)  
+4. `route-slice.sh` → `assert-build-route.sh` (mandatory; `boss-discipline.md`)  
 5. `check-ownership.sh` if multi-writer  
-6. Build; Kimi then native on Codex death  
+6. Build via Codex|Kimi|Task(route3-*) — never boss-write; log `BUILDER_DISPATCH`  
 7. Reviewer → improver ≤2  
 8. Boss `BUILD_PROOF` + `SLICE_EVAL`  
-9. `check-plan-done.sh` → report ≤15 lines
+9. `assert-build-route.sh --require-dispatch` → `check-plan-done.sh` → report ≤15 lines
 
 ## After ship (mandatory)
 

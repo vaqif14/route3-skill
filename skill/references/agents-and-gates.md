@@ -1,7 +1,14 @@
 # Route3 agents + gates
 
-Dispatch via Agent tool `subagent_type: "<name>"`. Continue with SendMessage
-for discussion rounds. Agents live in `~/.claude/agents/route3/`.
+Dispatch writers/reviewers — **boss never substitutes as writer**
+(`boss-discipline.md`).
+
+| Host | Dispatch tool |
+|---|---|
+| Claude Code | `Agent` tool `subagent_type: "<name>"`; continue via SendMessage |
+| Cursor | `Task` tool `subagent_type: "<name>"` (same `route3-*` names) |
+
+Agents live in `~/.claude/agents/route3/` (Cursor agent registry mirrors names).
 
 ## Agent roster
 

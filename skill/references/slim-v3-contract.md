@@ -40,10 +40,10 @@ after scan → `batch-lite`.
 3. CLARIFY (D1–D10) until open_branches=none — no code
 4. PACKAGE + user confirm → GRILL ALIGNED
 5. check-preflight.sh (exit 1 = stop)
-6. route-slice.sh → Codex → Kimi → native
+6. route-slice.sh → assert-build-route.sh → Codex → Kimi → native Task/Agent
 7. check-ownership.sh before parallel writers
-8. BUILD → test → reviewer → improver ≤2
-9. Boss BUILD_PROOF + SLICE_EVAL → check-plan-done.sh
+8. BUILD (never boss-write) → log BUILDER_DISPATCH → test → reviewer → improver ≤2
+9. Boss BUILD_PROOF + SLICE_EVAL → assert-build-route.sh --require-dispatch → check-plan-done.sh
 10. Report ≤15 lines
 ```
 
@@ -52,6 +52,7 @@ after scan → `batch-lite`.
 | Concern | Reference |
 |---|---|
 | Clarify gate | `clarify-then-execute.md` |
+| Boss never self-writes | `boss-discipline.md` + `assert-build-route.sh` |
 | Backend ladder | `native-primary.md` + `route-slice.sh` |
 | Minimal correct diff | `ponytail-ladder.md` |
 | Patterns / layers | `product-engineering.md` |
@@ -68,16 +69,19 @@ after scan → `batch-lite`.
 | Slice | Required |
 |---|---|
 | Trivial | `SLICE_EVAL:` |
-| Full | `CLARIFY_COVERAGE` + `GRILL ALIGNED` + `PREFLIGHT: PASS` + `ROUTE_DECISION` + `BUILD_PROOF` + `SLICE_EVAL` |
+| Full | `CLARIFY_COVERAGE` + `GRILL ALIGNED` + `PREFLIGHT: PASS` + `ROUTE_DECISION` + `BUILDER_DISPATCH` + `BUILD_PROOF` + `SLICE_EVAL` |
 | Domain | `EVIDENCE:` + clarify/grill marker |
 
 ## Anti-patterns
 
 - Coding before preflight PASS
+- Boss self-writing product/ops when `ROUTE_DECISION` is set (see `boss-discipline.md`)
+- Treating `primary=native` as "continue yourself / boss codes"
 - Shallow one-question then build
 - Re-asking profile silent defaults
 - Asking "Sol yoxsa Kimi?"
 - Inventing ROUTE_DECISION without `route-slice.sh`
+- Missing `BUILDER_DISPATCH:` before claiming done
 - Parallel writers without OWNERSHIP check
 - MVP stubs / skipping a11y-validation-states
 - Growing root SKILL.md — put depth in references/

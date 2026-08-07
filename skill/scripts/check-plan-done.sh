@@ -52,6 +52,7 @@ case "$MODE" in
     has 'CLARIFY_COVERAGE:' || missing+=("CLARIFY_COVERAGE:")
     has 'PREFLIGHT:\s*PASS' || missing+=("PREFLIGHT: PASS (run check-preflight.sh)")
     has 'ROUTE_DECISION:.*primary=(codex|kimi|native)' || missing+=("ROUTE_DECISION: primary=codex|kimi|native")
+    has '^BUILDER_DISPATCH:' || missing+=("BUILDER_DISPATCH: (boss-discipline.md — real Codex/Kimi/Task dispatch)")
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF: (boss re-ran tsc/test/lint — paste summary)")
     has 'PONYTAIL:' || warn+=("PONYTAIL:")
     has 'PRODUCT:' || warn+=("PRODUCT:")
@@ -62,6 +63,17 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   echo "NOT DONE: $PLAN missing required tokens for mode=$MODE"
   for m in "${missing[@]}"; do echo "  - $m"; done
   exit 1
+fi
+
+# Hard route/dispatch assert for full slices (boss never self-write)
+if [[ "$MODE" == full ]]; then
+  ROOT="$(cd "$(dirname "$0")" && pwd)"
+  if [[ -x "$ROOT/assert-build-route.sh" ]]; then
+    if ! "$ROOT/assert-build-route.sh" "$PLAN" --require-dispatch; then
+      echo "NOT DONE: assert-build-route.sh --require-dispatch failed"
+      exit 1
+    fi
+  fi
 fi
 
 echo "OK: mode=$MODE plan=$PLAN"

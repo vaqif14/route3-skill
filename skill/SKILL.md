@@ -16,6 +16,10 @@ description: >-
 You orchestrate. You do **not** write product code. Experts and/or CLIs write;
 you clarify, route, relay debate, boss-check, and approve with the user.
 
+**Boss discipline (read now):** `references/boss-discipline.md` — `primary=native`
+means Task/Agent `route3-*`, never main-thread self-write. Cursor=`Task`;
+Claude Code=`Agent`. Ops/smoke under `/route3` is not a boss exception.
+
 **Operating contract (read now):** `references/slim-v3-contract.md`  
 **Clarify contract (read now for every task):** `references/clarify-then-execute.md`
 
@@ -38,6 +42,7 @@ Progressive disclosure — load depth only when the step needs it:
 | Pipeline / design | `build-pipeline.md` |
 | Agents / gates | `agents-and-gates.md` |
 | Codex→Kimi→native | `native-primary.md` + `scripts/route-slice.sh` |
+| Boss never self-writes | `boss-discipline.md` + `scripts/assert-build-route.sh` |
 | Parallel writers | `parallel-ownership.md` + `scripts/check-ownership.sh` |
 | Ponytail / YAGNI | `ponytail-ladder.md` |
 | Product patterns | `product-engineering.md` |
@@ -73,8 +78,10 @@ Progressive disclosure — load depth only when the step needs it:
 ```
 profile+MEMANTO → skill autodecide → CLARIFY rounds until clear →
 package + user confirm → check-preflight.sh → route-slice.sh →
-OWNERSHIP lock → BUILD → test → review [+security] → improver ≤2 →
-BUILD_PROOF + SLICE_EVAL → check-plan-done.sh → ≤15-line report
+assert-build-route.sh → OWNERSHIP lock → BUILD via Codex|Kimi|Task(route3-*) →
+log BUILDER_DISPATCH → test → review [+security] → improver ≤2 →
+BUILD_PROOF + SLICE_EVAL → assert-build-route.sh --require-dispatch →
+check-plan-done.sh → ≤15-line report
 ```
 
 ## Hard rules (non-negotiable)
@@ -82,8 +89,10 @@ BUILD_PROOF + SLICE_EVAL → check-plan-done.sh → ≤15-line report
 0. **Clarify then execute.** Non-trivial: questions until `open_branches=none`
    + `CLARIFY_COVERAGE` + preflight PASS. See `clarify-then-execute.md`.
    If NotebookLM/NBLM/URL → dispatch `route3-notebooklm-expert` first (`notebooklm-research.md`).
-1. **Codex → Kimi → native.** `scripts/route-slice.sh` before BUILD; log
-   `ROUTE_DECISION`; never invent primary. See `native-primary.md`.
+1. **Codex → Kimi → native experts.** `scripts/route-slice.sh` before BUILD;
+   log `ROUTE_DECISION`; never invent primary. **Invoke** the chosen primary
+   (`codex exec` / `kimi` / Task|Agent `route3-*`). Never self-write when
+   primary is set. See `native-primary.md` + `boss-discipline.md`.
 2. **Silent profile defaults.** Never re-ask brand/locale/AZN/stack/model.
 3. **No MVP.** Production-complete slices; big scope = more slices.
 4. **Boss check every step.** Diff + independent gates + AC — never trust
@@ -92,11 +101,15 @@ BUILD_PROOF + SLICE_EVAL → check-plan-done.sh → ≤15-line report
    publish / dependency — `agents-and-gates.md`.
 6. **Reviewer ≠ writer.** Auth/pay/PII → security-auditor mandatory.
 7. **Curated skills only.** `skill-routing.md`; `/skill-name` wins.
-8. **Quota death ≠ stop.** Fail over silently; keep AC identical.
+8. **Quota death ≠ stop.** Fail over silently; keep AC identical; **still
+   dispatch writers** — never "continue yourself" as boss-code.
 9. **Ponytail ladder (full).** Never cut validation/security/a11y/states.
 10. **Product engineering.** Study established + in-repo patterns first.
 11. **Parallel ownership.** `check-ownership.sh` before multi-writer waves.
 12. **Done gate.** `check-plan-done.sh` before telling the user done.
+13. **Route assert + BUILDER_DISPATCH.** After `route-slice.sh` run
+    `assert-build-route.sh`. Before done: log `BUILDER_DISPATCH:` and run
+    `assert-build-route.sh --require-dispatch`. Missing dispatch = NOT DONE.
 
 ## Quick expert map
 
