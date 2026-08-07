@@ -19,10 +19,12 @@ set -e
 cat > PLAN.md <<'P'
 GRILL: status=ALIGNED
 open_branches=none
-CLARIFY_COVERAGE: D1 ok D2 ok D3 ok D4 ok D5 ok D6 ok D7 ok D8 ok D9 ok D10 ok
+CLARIFY_COVERAGE: D1 ok D2 ok D3 ok D4 ok D5 ok D6 ok D7 ok D8 ok D9 ok D10 ok D11 ok
 GOAL: test
 AC:
 - works
+SOLUTION_BAR: saas
+AGENT_MAP: route3-api-expert|EXISTS,route3-test-engineer|EXISTS
 PLAN_APPROVAL: approved
 P
 cp PLAN.md PLAN.bak
@@ -83,6 +85,8 @@ failure modes: timeout
 security: none
 P
 printf '\n%s\n' "PLAN_APPROVAL: approved" >> "$RUN_DIR/05-PLAN.md"
+grep -q 'AGENT_MAP:' "$RUN_DIR/05-PLAN.md" || echo "AGENT_MAP: route3-api-expert|EXISTS,route3-test-engineer|EXISTS" >> "$RUN_DIR/05-PLAN.md"
+grep -Eq 'SOLUTION_BAR:[[:space:]]*[Ss][Aa][Aa][Ss]' "$RUN_DIR/05-PLAN.md" || echo "SOLUTION_BAR: saas" >> "$RUN_DIR/05-PLAN.md"
 echo "slices: 001 BRIEF" >> "$RUN_DIR/05-PLAN.md"
 "$SCR/check-stage.sh" --run "$RUN_ID" product
 "$SCR/check-stage.sh" --run "$RUN_ID" architecture

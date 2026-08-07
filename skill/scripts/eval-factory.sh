@@ -15,10 +15,12 @@ bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
 cat > PLAN_BURIED.md <<'P'
 GRILL: status=ALIGNED
 open_branches=none
-CLARIFY_COVERAGE: D1 ok D2 ok D3 ok D4 ok D5 ok D6 ok D7 ok D8 ok D9 ok D10 ok
+CLARIFY_COVERAGE: D1 ok D2 ok D3 ok D4 ok D5 ok D6 ok D7 ok D8 ok D9 ok D10 ok D11 ok
 GOAL: test
 AC:
 - works
+SOLUTION_BAR: saas
+AGENT_MAP: route3-api-expert|EXISTS
 Would you like me to proceed? yes to all sounds good in the prose.
 P
 set +e

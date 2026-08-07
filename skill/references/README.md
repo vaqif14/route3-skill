@@ -7,6 +7,7 @@ Progressive disclosure for Route3. Load only what the current step needs (`SKILL
 | Always (Build) | [slim-v3-contract.md](slim-v3-contract.md) |
 | Always (clarify) | [clarify-then-execute.md](clarify-then-execute.md) |
 | Boss never self-writes | [boss-discipline.md](boss-discipline.md) |
+| Dispatch prompt + AGENT_MAP (before invoke) | [dispatch-prompt-contract.md](dispatch-prompt-contract.md) |
 | Defaults / portability | [project-profile.md](project-profile.md) |
 | Grill modes | [matt-grill-flow.md](matt-grill-flow.md) |
 | NotebookLM research → clarify | [notebooklm-research.md](notebooklm-research.md) |

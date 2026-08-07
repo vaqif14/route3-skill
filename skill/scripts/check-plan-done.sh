@@ -183,6 +183,48 @@ sys.exit(1)
   fi
 }
 
+
+# AGENT_MAP + SOLUTION_BAR + no-MVP deliverable wording (non-trivial)
+check_agent_map_solution_bar() {
+  # Accept block "AGENT_MAP:" or compact line
+  if ! has '^AGENT_MAP:|[[:space:]]AGENT_MAP:'; then
+    missing+=("AGENT_MAP: (block or line — see dispatch-prompt-contract.md)")
+  fi
+  if ! has 'SOLUTION_BAR:[[:space:]]*[Ss][Aa][Aa][Ss]\b'; then
+    missing+=("SOLUTION_BAR: saas")
+  fi
+  # MVP as intended deliverable → factory fail / full warn (negated lines OK)
+  local mvp_rc
+  set +e
+  python3 -c '
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+neg = re.compile(r"(?i)(no[- ]?mvp|mvp\s+forbidden|anti[- ]?mvp|not\s+an?\s+mvp|mvp\s+concept\s+does\s+not|forbid(?:den)?\s+mvp)")
+bad = []
+for i, line in enumerate(text.splitlines(), 1):
+    if not re.search(r"(?i)\bMVP\b", line):
+        continue
+    if neg.search(line):
+        continue
+    # SOLUTION_BAR / anti-pattern docs in PLAN that say "NO MVP" already skipped
+    bad.append((i, line.strip()[:120]))
+if bad:
+    for i, l in bad:
+        print(f"L{i}: {l}")
+    sys.exit(1)
+sys.exit(0)
+' "$PLAN"
+  mvp_rc=$?
+  set -e
+  if [[ "$mvp_rc" -ne 0 ]]; then
+    if [[ "$MODE" == factory ]]; then
+      missing+=("PLAN contains MVP deliverable wording (SaaS/no-MVP bar — factory)")
+    else
+      warn+=("PLAN contains MVP deliverable wording (prefer SaaS/no-MVP)")
+    fi
+  fi
+}
+
 case "$MODE" in
   trivial)
     has 'SLICE_EVAL:' || missing+=("SLICE_EVAL:")
@@ -202,6 +244,7 @@ case "$MODE" in
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF:")
     has 'PONYTAIL:' || warn+=("PONYTAIL:")
     has 'PRODUCT:' || warn+=("PRODUCT:")
+    check_agent_map_solution_bar
     check_lesson_for_verify_fail
     ;;
   factory)
@@ -211,6 +254,7 @@ case "$MODE" in
     has '^BUILDER_DISPATCH:' || missing+=("BUILDER_DISPATCH:")
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF:")
     has '^PLAN_APPROVAL: *(approved|continue|yes_to_all)\b' || missing+=("PLAN_APPROVAL human line")
+    check_agent_map_solution_bar
     if [[ -f "$STATE" ]]; then
       python3 -c '
 import json, sys

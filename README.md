@@ -1,8 +1,8 @@
 # route3-skill
 
-**Route3** — boss orchestrator skill for Claude Code and Cursor. Clarify completely, then execute via Codex → Kimi → native experts. Never self-writes product code.
+**Route3** — boss orchestrator skill for Claude Code and Cursor. Clarify completely (D1–D11), declare AGENT_MAP, dispatch with a full DISPATCH_PROMPT, then execute via Codex → Kimi → native experts. SaaS/no-MVP; never self-writes product code.
 
-`v1.4.1` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
+`v1.4.2` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
 
 ## What it is / is not
 
@@ -15,7 +15,7 @@
 
 ## Iron laws
 
-1. **Clarify → execute.** Scan D1–D10, ask every material question, package Goal/AC, wait for confirm, then `check-preflight.sh`. Never code first.
+1. **Clarify → execute.** Scan D1–D11 (incl. ideal_final_refs), package Goal/AC + AGENT_MAP, wait for confirm, then `check-preflight.sh`. Before Codex/Kimi/Task write DISPATCH_PROMPT (`dispatch-prompt-contract.md`). SaaS/no-MVP. Never code first.
 2. **Boss never self-writes.** `primary=native` means Task/Agent `route3-*`, not main-thread edits. Ops/smoke under `/route3` is not an exception. See `skill/references/boss-discipline.md`.
 3. **Codex → Kimi → native.** `route-slice.sh` picks primary; fail over on quota; AC stays identical. Never invent primary.
 4. **Self-improve is mandatory and evidence-bound.** Verify FAIL / reviewer FIX|REJECT / BUILD_PROOF fail → `record-lesson.sh` with VERIFY/digest evidence (`quality=bound`). Factory done ignores unbound lessons and PLAN-only `LESSON_RECORDED` theater.
@@ -83,7 +83,7 @@ More: [docs/QUICKSTART.md](docs/QUICKSTART.md)
                     │   /route3   │
                     └──────┬──────┘
                            ▼
-                    clarify (D1–D10)
+                    clarify (D1–D11) → AGENT_MAP + DISPATCH_PROMPT
                            ▼
                     classify-risk.sh
               ┌────────────┼────────────┐

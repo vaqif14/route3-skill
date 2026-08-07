@@ -11,11 +11,12 @@ On `/route3` Build (and ops/verify slices under Route3):
 
 | Allowed for boss | Forbidden for boss |
 |---|---|
-| Clarify D1–D10, package PLAN/AC | Edit product `src/` / `prisma/` / app routes |
-| Run `check-preflight.sh`, `route-slice.sh` | Implement features/fixes/migrations |
-| Dispatch Codex / Kimi / `route3-*` | "I'll just quickly fix it" in main thread |
+| Clarify D1–D11, package PLAN/AC | Edit product `src/` / `prisma/` / app routes |
+| Run `check-preflight.sh`, `route-slice.sh`, gate scripts | Implement features/fixes/migrations |
+| Write DISPATCH_PROMPT + AGENT_MAP; invoke Codex / Kimi / `route3-*` | "I'll just quickly fix it" in main thread |
 | Broker user approval gates | Prod env/DB/deploy **as the writer** (dispatch + supervise) |
-| Boss-check diffs, re-run tsc/test/lint | Skip dispatch because CLI probe said `native` |
+| Boss-check diffs, re-run tsc/test/lint; correlate evidence | Skip dispatch because CLI probe said `native` |
+| Re-dispatch on BLOCKED / VERIFY FAIL only | Intervene in writer session internals / live-rewrite WIP |
 | ≤15-line user report | Apologize and self-code after quota death |
 
 **`primary=native` ≠ boss writes.** It means: dispatch `route3-*` experts
@@ -24,6 +25,29 @@ On `/route3` Build (and ops/verify slices under Route3):
 **Ops/smoke/log-verify under `/route3` is not a boss exception.** Dispatch
 `route3-api-expert` / `route3-test-engineer` / shell specialist via Task;
 boss only correlates evidence and gates.
+
+
+## Dispatch prompt (mandatory)
+
+Before every Codex / Kimi / Task|Agent invoke, write a full **DISPATCH_PROMPT**
+with **AGENT_MAP** per [`dispatch-prompt-contract.md`](dispatch-prompt-contract.md).
+
+Process: `CLARIFY COMPLETE → AGENT_MAP → DISPATCH_PROMPT → INVOKE → BOSS GATES ONLY`.
+
+Status enum: `EXISTS` | `MISSING_TYPE` | `USE_EXISTING`. Never invent fake agents.
+SaaS / no-MVP / ideal-final bar is part of the prompt (`SOLUTION_BAR`).
+
+### Writer-internals boundary
+
+| Allowed | Forbidden |
+|---|---|
+| Clarify, package, write DISPATCH_PROMPT | Mid-flight rewrite of the writer's WIP / internals |
+| Dispatch + log `BUILDER_DISPATCH` | Prompt nudges inside a live writer session |
+| Gate scripts (`assert-build-route`, `check-plan-done`, tsc/test) | Boss becoming co-author mid-slice |
+| Correlate evidence / review outputs | "Quick fix" edits while writer is running |
+| Re-dispatch **new** prompt only on BLOCKED or VERIFY FAIL | Live meddling that muddies ownership |
+
+Boss manages **orchestration only**.
 
 ## Dispatch matrix (mandatory)
 
@@ -45,8 +69,12 @@ Examples:
 
 ```text
 BUILDER_DISPATCH: primary=kimi via=kimi-cli agents=- at=2026-08-07T12:00:00Z
-BUILDER_DISPATCH: primary=native via=task agents=route3-api-expert,route3-reviewer at=2026-08-07T12:05:00Z
+BUILDER_DISPATCH: primary=native via=task agents=route3-api-expert|EXISTS,route3-ui-expert|USE_EXISTING at=2026-08-07T12:05:00Z
+BUILDER_DISPATCH: primary=native via=task agents=route3-api-expert|EXISTS,route3-reviewer|EXISTS at=2026-08-07T12:05:00Z
 ```
+
+Include an `agent_map` summary on the dispatch line (`name|EXISTS|USE_EXISTING|MISSING_TYPE`).
+Full AGENT_MAP + DISPATCH_PROMPT: see **Dispatch prompt (mandatory)** below.
 
 Missing `BUILDER_DISPATCH:` → `check-plan-done.sh` FAIL.
 

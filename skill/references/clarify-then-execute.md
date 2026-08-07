@@ -34,15 +34,15 @@ USER_CONFIRM → PREFLIGHT_PASS → EXECUTE → VERIFY → DONE
 | Phase | Boss does | Exit criterion |
 |---|---|---|
 | INVESTIGATE | Repo, MEMANTO, project-profile, silent defaults | Facts gathered |
-| AMBIGUITY_SCAN | Score all 10 dimensions below | `CLARIFY_COVERAGE` draft |
+| AMBIGUITY_SCAN | Score all 11 dimensions below | `CLARIFY_COVERAGE` draft |
 | QUESTION_ROUNDS | Ask every **open** dimension (see batching) | `open_branches=none` |
-| PACKAGE | Goal / Assumptions / Plan / gateable AC | Package in chat + PLAN |
+| PACKAGE | Goal / Assumptions / Plan / gateable AC + draft AGENT_MAP | Package in chat + PLAN |
 | USER_CONFIRM | Wait for approve / continue / yes to all / answers | User signal |
 | PREFLIGHT_PASS | `scripts/check-preflight.sh` | exit 0 |
 | EXECUTE | `route-slice.sh` → Codex→Kimi→native + experts | Diff exists |
 | VERIFY | Reviewer, boss re-run gates, SLICE_EVAL | `check-plan-done.sh` |
 
-## 10 dimensions (all-sided clarify)
+## 11 dimensions (all-sided clarify)
 
 Boss **must** mark each dimension in PLAN. Never skip a dim silently.
 
@@ -58,12 +58,13 @@ Boss **must** mark each dimension in PLAN. Never skip a dim silently.
 | D8 | `acceptance_verify` | How user verifies in-app (path + expected) |
 | D9 | `risks_rollback` | Blast radius, kill switch, rollback |
 | D10 | `out_of_scope` | What we will **not** touch this slice |
+| D11 | `ideal_final_refs` | Screenshots / samples / acceptance path / what "perfect done" looks like — ask **BEFORE** build when UI/UX or user may later say "belə olmalıdır" |
 
 Per dimension status (exactly one):
 
 `asked` | `answered` | `repo_resolved` | `default_applied` | `n/a`
 
-`ALIGNED` requires: every dim is `answered` | `repo_resolved` |
+`ALIGNED` requires: every dim **D1–D11** is `answered` | `repo_resolved` |
 `default_applied` | `n/a` — **zero** bare `asked` left open.
 
 ## Question quality rules
@@ -116,6 +117,7 @@ CLARIFY_COVERAGE:
   D8 acceptance_verify: …
   D9 risks_rollback: …
   D10 out_of_scope: …
+  D11 ideal_final_refs: … — screenshots/samples/acceptance path / perfect-done
 
 GRILL: mode=full|one|docs|batch-lite status=IN_PROGRESS|ALIGNED|SKIPPED_TRIVIAL
   rounds=<n>
@@ -127,8 +129,24 @@ ASSUMPTIONS:
   1. …
 AC:
   - [ ] <gate-checkable>
+SOLUTION_BAR: saas
+AGENT_MAP: <intended experts even before route> e.g. route3-api-expert|EXISTS,route3-ui-expert|EXISTS
 PLAN_APPROVAL: pending|approved|continue|yes_to_all
 ```
+
+
+## PACKAGE requires draft AGENT_MAP
+
+Even **before** `route-slice.sh`, PACKAGE must list intended experts:
+
+```text
+AGENT_MAP: route3-api-expert|EXISTS,route3-ui-expert|EXISTS
+```
+
+Status values: `EXISTS` | `MISSING_TYPE` | `USE_EXISTING` — see
+`dispatch-prompt-contract.md`. Do not invent agents. UI/UX slices must close
+D11 (`ideal_final_refs`) so design samples are clarify inputs, not post-ship
+surprises.
 
 ## Mid-build re-clarify
 
@@ -142,8 +160,10 @@ If an assumption dies or a new material branch appears:
 ## Anti-patterns
 
 - Coding while `open_branches` ≠ none
-- Marking ALIGNED with dims still `asked`
+- Marking ALIGNED with dims still `asked` (D1–D11 incomplete)
 - Asking silent-default / discoverable questions
 - Single vague question then build
 - "Looks clear enough" without `CLARIFY_COVERAGE`
 - Skipping preflight script
+- Shipping then receiving design samples that should have been clarify D11 / DESIGN_REFS inputs
+- PACKAGE without draft `AGENT_MAP` of intended experts

@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-08-08
+
+### Added
+
+- `skill/references/dispatch-prompt-contract.md` — Boss → builder DISPATCH_PROMPT + AGENT_MAP (`EXISTS`|`MISSING_TYPE`|`USE_EXISTING`)
+- Clarify D11 `ideal_final_refs` (screenshots/samples/perfect-done before build)
+- Hard rule 16: full DISPATCH_PROMPT before Codex/Kimi/Task; boss does not meddle in writer internals
+- Done gates: require `AGENT_MAP:` + `SOLUTION_BAR: saas`; MVP deliverable wording fails factory / warns full
+- `assert-build-route.sh --require-dispatch` requires `AGENT_MAP:`
+
+### Changed
+
+- Boss discipline / clarify / slim-v3 / native-primary: SaaS/no-MVP ideal-final bar; clarify-first process order
+- Package version **1.4.2**
+
 ## [1.4.1] - 2026-08-08
 
 ### Added

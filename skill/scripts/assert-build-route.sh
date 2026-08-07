@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Hard gate: ROUTE_DECISION from route-slice.sh + optional BUILDER_DISPATCH.
+# --require-dispatch also requires AGENT_MAP: in PLAN.
 # Usage: assert-build-route.sh [PLAN.md] [--require-dispatch] [--run RUN_ID]
 set -euo pipefail
 
@@ -101,6 +102,13 @@ if [[ "$REQUIRE_DISPATCH" -eq 1 && -n "$primary" && "$primary" != "native" ]]; t
         || fail+=("primary=kimi requires BUILDER_DISPATCH via=kimi-cli")
       ;;
   esac
+fi
+
+
+if [[ "$REQUIRE_DISPATCH" -eq 1 ]]; then
+  if ! grep -Eq '^AGENT_MAP:|[[:space:]]AGENT_MAP:' "$PLAN"; then
+    fail+=("missing AGENT_MAP: in PLAN — declare EXISTS|MISSING_TYPE|USE_EXISTING before invoke (dispatch-prompt-contract.md)")
+  fi
 fi
 
 if [[ ${#fail[@]} -gt 0 ]]; then

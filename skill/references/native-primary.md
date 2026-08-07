@@ -26,9 +26,20 @@ Log the `ROUTE_DECISION` line in PLAN.md. Do not invent a different order.
 | Default builder | **Codex first** (`primary=codex` when `sol=GREEN`) |
 | Codex dead | **Kimi** (`primary=kimi` when `kimi=GREEN`) |
 | Both dead | **Native** `route3-*` via Task/Agent — never stop; never ask; **never boss-write** |
-| Quality bar | Same Done means as `slim-v3-contract.md` — native ≠ MVP |
+| Quality bar | Same Done means as `slim-v3-contract.md` — SaaS / native ≠ MVP; require DISPATCH_PROMPT |
 | Trivial only | Proportionality typo/~20-line may skip probe and stay native |
 | Overnight | Same ladder; if both CLI OPEN → native expert queue (not boss) |
+
+
+## DISPATCH_PROMPT before invoke (mandatory)
+
+Before `codex exec` / `kimi` / Task|Agent:
+
+1. Clarify complete (D1–D11) + draft `AGENT_MAP`
+2. Write full **DISPATCH_PROMPT** per [`dispatch-prompt-contract.md`](dispatch-prompt-contract.md)
+3. Status enum: `EXISTS` | `MISSING_TYPE` | `USE_EXISTING` — never invent agents
+4. `SOLUTION_BAR`: SaaS production, **NO MVP**, ideal-final for AC
+5. Invoke with that prompt only; boss does not meddle in writer internals mid-flight
 
 ## When each primary builds
 
@@ -38,7 +49,7 @@ Log the `ROUTE_DECISION` line in PLAN.md. Do not invent a different order.
 | `kimi` | `kimi -m kimi-code/k3 -p "<task>" </dev/null` |
 | `native` | Cursor `Task` / Claude Code `Agent` → `route3-*` (parallel disjoint files); same AC |
 
-After invoke, log `BUILDER_DISPATCH:` in PLAN (`boss-discipline.md`). Run
+After invoke, log `BUILDER_DISPATCH:` + ensure PLAN has `AGENT_MAP:` (`boss-discipline.md`, `dispatch-prompt-contract.md`). Run
 `scripts/assert-build-route.sh` (and `--require-dispatch` before done).
 
 Auth/pay/PII → always + **mandatory** security-auditor (any primary).

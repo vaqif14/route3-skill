@@ -26,11 +26,12 @@ Claude Code=`Agent`. Ops/smoke under `/route3` is not a boss exception.
 ## Iron law
 
 **Clarify completely → then execute** (standard or factory).  
-Any concrete non-trivial task: scan ambiguities (D1–D10), ask every remaining
-material question, package Goal/AC, wait for confirm, run
-`scripts/check-preflight.sh`. Exit 1 → keep clarifying. **Never code first.**
-High-risk / multi-slice → `FACTORY: class=factory` + `init-run.sh` (see
-`factory-contract.md`). Default stays slim-v3 standard.
+Any concrete non-trivial task: scan ambiguities (D1–D11), ask every remaining
+material question (incl. `ideal_final_refs`), package Goal/AC + draft AGENT_MAP,
+wait for confirm, run `scripts/check-preflight.sh`. Exit 1 → keep clarifying.
+**Never code first.** Before Codex/Kimi/Task: write full DISPATCH_PROMPT per
+`dispatch-prompt-contract.md`. High-risk / multi-slice → `FACTORY: class=factory`
++ `init-run.sh` (see `factory-contract.md`). Default stays slim-v3 standard.
 
 Progressive disclosure — load depth only when the step needs it:
 
@@ -45,6 +46,7 @@ Progressive disclosure — load depth only when the step needs it:
 | Agents / gates | `agents-and-gates.md` |
 | Codex→Kimi→native | `native-primary.md` + `scripts/route-slice.sh` |
 | Boss never self-writes | `boss-discipline.md` + `scripts/assert-build-route.sh` |
+| Dispatch prompt + AGENT_MAP | `dispatch-prompt-contract.md` (before Codex/Kimi/Task) |
 | Parallel writers | `parallel-ownership.md` + `scripts/check-ownership.sh` |
 | Ponytail / YAGNI | `ponytail-ladder.md` |
 | Product patterns | `product-engineering.md` |
@@ -74,7 +76,7 @@ Progressive disclosure — load depth only when the step needs it:
 
 | Mode | Spine |
 |---|---|
-| **Build (standard)** | clarify D1–D10 → preflight → Codex→Kimi→native → review → boss |
+| **Build (standard)** | clarify D1–D11 → preflight → AGENT_MAP + DISPATCH_PROMPT → Codex→Kimi→native → review → boss |
 | **Build (factory)** | opt-in: `classify-risk` → `FACTORY: class=factory` → init-run → VALIDATED stages → slice BRIEF → verify-slice → lessons on FAIL → review |
 | **Domain** | same clarify gate + playbook + evidence grades |
 | **Design-image** | clarify + design-analyst → build → visual check |
@@ -83,10 +85,11 @@ Progressive disclosure — load depth only when the step needs it:
 ## Default spine
 
 ```
-profile+MEMANTO → skill autodecide → CLARIFY rounds until clear →
-package + user confirm → check-preflight.sh → route-slice.sh →
-assert-build-route.sh → OWNERSHIP lock → BUILD via Codex|Kimi|Task(route3-*) →
-log BUILDER_DISPATCH → test → review [+security] → improver ≤2 →
+profile+MEMANTO → skill autodecide → CLARIFY D1–D11 until clear →
+package + AGENT_MAP draft + user confirm → check-preflight.sh → route-slice.sh →
+assert-build-route.sh → OWNERSHIP lock → write DISPATCH_PROMPT →
+BUILD via Codex|Kimi|Task(route3-*) → log BUILDER_DISPATCH →
+test → review [+security] → improver ≤2 →
 BUILD_PROOF + SLICE_EVAL → assert-build-route.sh --require-dispatch →
 check-plan-done.sh → ≤15-line report
 ```
@@ -94,7 +97,7 @@ check-plan-done.sh → ≤15-line report
 ## Hard rules (non-negotiable)
 
 0. **Clarify then execute.** Non-trivial: questions until `open_branches=none`
-   + `CLARIFY_COVERAGE` + preflight PASS. See `clarify-then-execute.md`.
+   + `CLARIFY_COVERAGE` D1–D11 + preflight PASS. See `clarify-then-execute.md`.
    If NotebookLM/NBLM/URL → dispatch `route3-notebooklm-expert` first (`notebooklm-research.md`).
 1. **Codex → Kimi → native experts.** `scripts/route-slice.sh` before BUILD;
    log `ROUTE_DECISION`; never invent primary. **Invoke** the chosen primary
@@ -123,6 +126,10 @@ check-plan-done.sh → ≤15-line report
 15. **Self-improve mandatory.** On verify FAIL, reviewer FIX/REJECT, or
     BUILD_PROOF fail → `record-lesson.sh` (lessons are data; do not silently
     rewrite skill text mid-task). See `self-improve.md`.
+16. **Dispatch prompt + AGENT_MAP.** Before Codex/Kimi/Task invoke, write full
+    DISPATCH_PROMPT per `dispatch-prompt-contract.md`
+    (`EXISTS`|`MISSING_TYPE`|`USE_EXISTING`). SaaS/no-MVP/ideal-final.
+    Boss does not meddle in writer internals.
 
 ## Quick expert map
 

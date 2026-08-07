@@ -4,7 +4,8 @@ Thin root `SKILL.md` + progressive `references/`. Depth loads on demand.
 
 ## Goal
 
-Ship production-ready slices with **shared understanding first**. Defaults
+Ship **SaaS production** slices (no MVP) with **shared understanding first**.
+Before invoke: full DISPATCH_PROMPT + AGENT_MAP (`dispatch-prompt-contract.md`). Defaults
 remove noise questions; **task ambiguity is never skipped**.
 
 ## Silent defaults (never ask)
@@ -22,7 +23,7 @@ Full taxonomy: `clarify-then-execute.md`. Procedure: `matt-grill-flow.md`.
 For every concrete non-trivial task:
 
 1. Investigate
-2. Scan D1–D10 ambiguities
+2. Scan D1–D11 ambiguities
 3. Ask **all remaining material questions** (rounds until clear)
 4. Package Goal / Assumptions / Plan / AC
 5. Wait for user confirm
@@ -37,10 +38,10 @@ after scan → `batch-lite`.
 ```
 1. Project profile + MEMANTO + silent defaults
 2. Domain + curated skill (≤3) — never ask which
-3. CLARIFY (D1–D10) until open_branches=none — no code
+3. CLARIFY (D1–D11) until open_branches=none — no code
 4. PACKAGE + user confirm → GRILL ALIGNED
 5. check-preflight.sh (exit 1 = stop)
-6. route-slice.sh → assert-build-route.sh → Codex → Kimi → native Task/Agent
+6. AGENT_MAP + DISPATCH_PROMPT (`dispatch-prompt-contract.md`) → route-slice.sh → assert-build-route.sh → Codex → Kimi → native Task/Agent
 7. check-ownership.sh before parallel writers
 8. BUILD (never boss-write) → log BUILDER_DISPATCH → test → reviewer → improver ≤2
 9. Boss BUILD_PROOF + SLICE_EVAL → assert-build-route.sh --require-dispatch → check-plan-done.sh
@@ -69,7 +70,7 @@ after scan → `batch-lite`.
 | Slice | Required |
 |---|---|
 | Trivial | `SLICE_EVAL:` |
-| Full | `CLARIFY_COVERAGE` + `GRILL ALIGNED` + `PREFLIGHT: PASS` + `ROUTE_DECISION` + `BUILDER_DISPATCH` + `BUILD_PROOF` + `SLICE_EVAL` |
+| Full | `CLARIFY_COVERAGE` (D1–D11) + `GRILL ALIGNED` + `SOLUTION_BAR: saas` + `AGENT_MAP` + `PREFLIGHT: PASS` + `ROUTE_DECISION` + `DISPATCH_PROMPT`/`BUILDER_DISPATCH` + `BUILD_PROOF` + `SLICE_EVAL` |
 | Domain | `EVIDENCE:` + clarify/grill marker |
 
 ## Anti-patterns
@@ -84,4 +85,6 @@ after scan → `batch-lite`.
 - Missing `BUILDER_DISPATCH:` before claiming done
 - Parallel writers without OWNERSHIP check
 - MVP stubs / skipping a11y-validation-states
+- Missing DISPATCH_PROMPT / AGENT_MAP before Codex/Kimi/Task invoke
+- SaaS bar violated (MVP wording as deliverable)
 - Growing root SKILL.md — put depth in references/
