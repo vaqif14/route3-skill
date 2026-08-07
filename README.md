@@ -2,7 +2,7 @@
 
 **Route3** — boss orchestrator skill for Claude Code and Cursor. Clarify completely, then execute via Codex → Kimi → native experts. Never self-writes product code.
 
-`v1.4.0` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
+`v1.4.1` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
 
 ## What it is / is not
 
@@ -18,7 +18,7 @@
 1. **Clarify → execute.** Scan D1–D10, ask every material question, package Goal/AC, wait for confirm, then `check-preflight.sh`. Never code first.
 2. **Boss never self-writes.** `primary=native` means Task/Agent `route3-*`, not main-thread edits. Ops/smoke under `/route3` is not an exception. See `skill/references/boss-discipline.md`.
 3. **Codex → Kimi → native.** `route-slice.sh` picks primary; fail over on quota; AC stays identical. Never invent primary.
-4. **Self-improve is mandatory.** Verify FAIL / reviewer FIX|REJECT / BUILD_PROOF fail → `record-lesson.sh`. Factory done fails closed without lesson attempts when slices are blocked.
+4. **Self-improve is mandatory and evidence-bound.** Verify FAIL / reviewer FIX|REJECT / BUILD_PROOF fail → `record-lesson.sh` with VERIFY/digest evidence (`quality=bound`). Factory done ignores unbound lessons and PLAN-only `LESSON_RECORDED` theater.
 
 ## Risk paths
 

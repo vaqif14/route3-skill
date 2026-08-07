@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-08-08
+
+### Added
+
+- Evidence-bound lessons: `evidence_path`, `quality` (`bound`|`unbound`) on `LESSONS.jsonl`
+- Fluff / short-reason rejection in `record-lesson.sh` (smoke escape: `--allow-unbound --tag smoke`)
+- Auto-attach `VERIFY.md` when `--run` + `--slice` and file exists
+- Smoke negative check: fluff lesson without allow-unbound must exit 2
+
+### Changed
+
+- Anti-theater self-improve (Kopadze-aligned): factory done accepts **only** bound lessons for matching `run_id`; ignores unbound / missing quality / PLAN-only `LESSON_RECORDED`
+- `verify-slice.sh` FAIL auto-lesson uses durable ≥40-char reason + `--after` VERIFY.md
+- Docs: Real vs Fake table + five loop blocks in `self-improve.md` / `docs/SELF-IMPROVE.md`
+- Package version **1.4.1**
+
 ## [1.4.0] - 2026-08-08
 
 ### Added

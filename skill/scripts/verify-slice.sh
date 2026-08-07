@@ -152,7 +152,7 @@ if [[ "$FAIL" -ne 0 ]]; then
     set +e
     "$ROOT_SCRIPTS/record-lesson.sh" \
       --title "verify-slice FAIL slice=$SLICE" \
-      --reason "VERIFY_STATUS FAIL pass=$PASS fail=$FAIL" \
+      --reason "VERIFY_STATUS FAIL slice=$SLICE pass=$PASS fail=$FAIL; durable: fix failing verify cmd then re-run verify-slice" \
       --run "$RUN_ID" \
       --slice "$SLICE" \
       --after "$OUT" \

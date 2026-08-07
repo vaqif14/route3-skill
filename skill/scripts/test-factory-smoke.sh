@@ -107,11 +107,19 @@ grep -q 'ACTIVE LESSONS' "$RUN_DIR/CONTEXT.md" || { echo "FAIL: context missing 
 "$SCR/verify-slice.sh" --run "$RUN_ID" --slice 001
 grep -q 'VERIFY_STATUS: PASS' "$RUN_DIR/slices/001/VERIFY.md"
 
-# 8) record-lesson + lesson-rollback
-out=$("$SCR/record-lesson.sh" --title "smoke lesson" --reason "test" --run "$RUN_ID" --slice 001 --tag smoke)
-echo "$out" | grep -Eq 'LESSON_RECORDED: id=' || { echo "FAIL: record-lesson: $out"; exit 1; }
-LID=$(echo "$out" | sed -n 's/^LESSON_RECORDED: id=//p')
+# 8) record-lesson + lesson-rollback (evidence-bound; fluff rejected)
+set +e
+"$SCR/record-lesson.sh" --title "test" --reason "oops" --run "$RUN_ID" --slice 001 >/tmp/route3-fluff-lesson.out 2>/tmp/route3-fluff-lesson.err
+fluff_rc=$?
+set -e
+[[ "$fluff_rc" -eq 2 ]] || { echo "FAIL: fluff lesson should exit 2 (got $fluff_rc)"; cat /tmp/route3-fluff-lesson.err; exit 1; }
+
+out=$("$SCR/record-lesson.sh"   --title "smoke evidence-bound lesson"   --reason "Factory smoke: durable lesson after verify-slice PASS with VERIFY.md digest attached as after evidence"   --run "$RUN_ID"   --slice 001   --after "$RUN_DIR/slices/001/VERIFY.md"   --tag smoke)
+echo "$out" | grep -Eq 'LESSON_RECORDED: id=.*quality=bound' || { echo "FAIL: record-lesson: $out"; exit 1; }
+LID=$(echo "$out" | sed -n 's/^LESSON_RECORDED: id=\([^ ]*\).*/\1/p')
+[[ -n "$LID" ]] || { echo "FAIL: could not parse lesson id from: $out"; exit 1; }
 [[ -f .workflow/route3/lessons/LESSONS.jsonl ]]
+grep -q "\"quality\": \"bound\"" .workflow/route3/lessons/LESSONS.jsonl ||   python3 -c 'import json,sys; lines=open(".workflow/route3/lessons/LESSONS.jsonl").read().strip().splitlines(); assert any(json.loads(l).get("id")==sys.argv[1] and json.loads(l).get("quality")=="bound" for l in lines)' "$LID"
 "$SCR/lesson-list.sh" | grep -q "$LID" || { echo "FAIL: lesson-list missing $LID"; exit 1; }
 "$SCR/context-pack.sh" --run "$RUN_ID" --slice 001
 grep -q "$LID" "$RUN_DIR/CONTEXT.md" || { echo "FAIL: lesson not injected in context"; exit 1; }

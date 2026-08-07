@@ -52,7 +52,7 @@ has_preflight() {
   [[ -f .workflow/route3/PREFLIGHT_LAST.txt ]] && grep -Eq 'PREFLIGHT: PASS' .workflow/route3/PREFLIGHT_LAST.txt
 }
 
-# Self-improve: VERIFY FAIL without LESSON_RECORDED
+# Self-improve: VERIFY FAIL without evidence-bound LESSON_RECORDED
 # exit codes from helper: 0 ok, 2 factory missing, 3 full warn
 check_lesson_for_verify_fail() {
   local rc
@@ -71,7 +71,35 @@ if run_id:
 if not need:
     sys.exit(0)
 
-def has_lesson():
+def is_bound_lesson(o):
+    if o.get("status") == "rolled_back":
+        return False
+    # missing quality treated as unbound
+    return o.get("quality") == "bound"
+
+def has_bound_lesson():
+    """Factory: JSONL evidence-bound only. PLAN LESSON_RECORDED alone is NOT enough."""
+    if not run_id:
+        return False
+    jl = ".workflow/route3/lessons/LESSONS.jsonl"
+    if not os.path.isfile(jl):
+        return False
+    for line in open(jl, encoding="utf-8"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+        except Exception:
+            continue
+        if o.get("run_id") == run_id and is_bound_lesson(o):
+            return True
+    return False
+
+def has_any_lesson_signal():
+    """Full mode: warn if no lesson signal at all (bound preferred)."""
+    if has_bound_lesson():
+        return True
     if re.search(r"LESSON_RECORDED", text):
         return True
     if run_id:
@@ -88,20 +116,29 @@ def has_lesson():
                     o = json.loads(line)
                 except Exception:
                     continue
-                if o.get("run_id") == run_id:
+                if o.get("run_id") == run_id and o.get("status") != "rolled_back":
                     return True
     return False
 
-if has_lesson():
+if mode == "factory":
+    if has_bound_lesson():
+        sys.exit(0)
+    sys.exit(2)
+
+# full / other: warn if no bound lesson (also warn when any signal missing)
+if has_bound_lesson():
     sys.exit(0)
-sys.exit(2 if mode == "factory" else 3)
+if has_any_lesson_signal():
+    # lesson exists but unbound / PLAN-only — still warn for missing bound evidence
+    sys.exit(3)
+sys.exit(3)
 ' "$PLAN" "${RUN_ID:-}" "$MODE"
   rc=$?
   set -e
   if [[ "$rc" -eq 2 ]]; then
-    missing+=("LESSON_RECORDED after VERIFY FAIL (self-improve mandatory)")
+    missing+=("bound lesson (evidence-bound LESSON_RECORDED) after VERIFY FAIL — factory ignores unbound / PLAN-only")
   elif [[ "$rc" -eq 3 ]]; then
-    warn+=("VERIFY FAIL without LESSON_RECORDED (self-improve)")
+    warn+=("VERIFY FAIL without bound lesson (evidence-bound self-improve)")
   fi
 }
 
@@ -118,9 +155,12 @@ s = json.load(open(state_path, encoding="utf-8"))
 blocked = [k for k,v in (s.get("slices") or {}).items() if v.get("state") == "blocked"]
 if not blocked:
     sys.exit(0)
-tr = ".workflow/route3/runs/%s/TRACE.jsonl" % rid
-if os.path.isfile(tr) and "LESSON_RECORDED" in open(tr, encoding="utf-8").read():
-    sys.exit(0)
+
+def is_bound_lesson(o):
+    if o.get("status") == "rolled_back":
+        return False
+    return o.get("quality") == "bound"
+
 jl = ".workflow/route3/lessons/LESSONS.jsonl"
 if os.path.isfile(jl):
     for line in open(jl, encoding="utf-8"):
@@ -131,14 +171,15 @@ if os.path.isfile(jl):
             o = json.loads(line)
         except Exception:
             continue
-        if o.get("run_id") == rid:
+        if o.get("run_id") == rid and is_bound_lesson(o):
             sys.exit(0)
+# TRACE / PLAN LESSON_RECORDED alone is insufficient in factory mode
 sys.exit(1)
 ' "$STATE" "$RUN_ID"
   rc=$?
   set -e
   if [[ "$rc" -ne 0 ]]; then
-    missing+=("lesson attempt required when slice blocked")
+    missing+=("bound lesson (evidence-bound) required when slice blocked — unbound / PLAN-only ignored")
   fi
 }
 

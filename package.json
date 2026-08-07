@@ -1,6 +1,6 @@
 {
   "name": "route3-skill",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Route3 multi-expert orchestrator + opt-in artifact factory (auto risk classify, stale gates, mandatory self-improve lessons).",
   "main": "bin/route3-skill.js",
   "bin": {
