@@ -1,0 +1,30 @@
+{
+  "skill": "route3",
+  "version": "outcome-v1",
+  "purpose": "Score BUILD OUTPUT quality, not just trigger/routing. Each case sets up a produced slice, runs its verify commands, and checks acceptance markers. This is the eval type the audit flagged as missing.",
+  "threshold": 1.0,
+  "cases": [
+    {
+      "id": "oc-pass-1",
+      "name": "correct impl passes verify + AC",
+      "setup": [
+        "cat > sum.js <<'EOF'\nfunction sum(a, b) { return a + b; }\nmodule.exports = { sum };\nEOF",
+        "cat > sum.test.js <<'EOF'\nconst assert = require('assert');\nconst { sum } = require('./sum');\nassert.strictEqual(sum(2, 3), 5);\nassert.strictEqual(sum(-1, 1), 0);\nconsole.log('AC1_OK: sum adds two numbers');\nEOF"
+      ],
+      "verify": ["node sum.test.js"],
+      "acceptance": ["AC1_OK: sum adds two numbers"],
+      "expect": "pass"
+    },
+    {
+      "id": "oc-fail-1",
+      "name": "regression: wrong impl must be caught (scorer discriminates)",
+      "setup": [
+        "cat > sum.js <<'EOF'\nfunction sum(a, b) { return a - b; }\nmodule.exports = { sum };\nEOF",
+        "cat > sum.test.js <<'EOF'\nconst assert = require('assert');\nconst { sum } = require('./sum');\nassert.strictEqual(sum(2, 3), 5);\nconsole.log('AC1_OK: sum adds two numbers');\nEOF"
+      ],
+      "verify": ["node sum.test.js"],
+      "acceptance": ["AC1_OK: sum adds two numbers"],
+      "expect": "fail"
+    }
+  ]
+}

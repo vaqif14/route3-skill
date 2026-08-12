@@ -1,6 +1,4 @@
-node_modules/
 .DS_Store
 *.log
-.npm/
-dist/
+node_modules/
 .workflow/
