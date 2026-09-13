@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const { equalToken } = require('./security');
 const { JobManager } = require('./process-manager');
 const { Integrations } = require('./integrations');
+const { ExpertRegistry } = require('./experts');
 
 const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
 
@@ -44,7 +45,8 @@ function readJSON(request) {
 function createServer(options = {}) {
   const token = crypto.randomBytes(32).toString('hex');
   const workspace = fs.realpathSync(options.workspace || process.env.ROUTE3_WORKSPACE || process.cwd());
-  const jobs = options.jobs || new JobManager({ workspace, ...options.jobOptions });
+  const experts = options.experts || new ExpertRegistry({ home: options.home });
+  const jobs = options.jobs || new JobManager({ workspace, experts, ...options.jobOptions });
   const integrations = options.integrations || new Integrations(options.integrationOptions);
   const telemetry = options.collectTelemetry || (args => require('./telemetry').collectTelemetry(args));
   const publicDir = options.publicDir || path.join(__dirname, 'public');
@@ -82,7 +84,7 @@ function createServer(options = {}) {
         if (pathname === '/api/bootstrap') return json(response, 200, { token, csrfToken: token, workspace });
         if (pathname === '/api/state') {
           const data = await collect();
-          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: data.warnings || [], agents: jobs.agents(), jobs: jobs.list(), integrations: integrations.snapshot(), workspace, generatedAt: new Date().toISOString() });
+          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: data.warnings || [], agents: jobs.agents(), experts: experts.list(), jobs: jobs.list(), integrations: integrations.snapshot(), workspace, generatedAt: new Date().toISOString() });
         }
         if (Object.hasOwn(STATIC, pathname)) {
           const [file, type] = STATIC[pathname];
@@ -94,11 +96,17 @@ function createServer(options = {}) {
         }
         return json(response, 404, { error: 'Not found.' });
       }
-      if (request.method !== 'POST') return json(response, 405, { error: 'Method not allowed.' });
+      if (request.method !== 'POST' && request.method !== 'DELETE') return json(response, 405, { error: 'Method not allowed.' });
       if (!equalToken(request.headers['x-route3-token'], token)) return json(response, 403, { error: 'A valid Route3 session token is required.' });
+      if (request.method === 'DELETE') {
+        const expertPath = /^\/api\/experts\/([a-z0-9-]{1,64})$/.exec(pathname);
+        if (expertPath) return json(response, 200, { ok: experts.remove(expertPath[1]) });
+        return json(response, 404, { error: 'Not found.' });
+      }
       if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] || '')) return json(response, 415, { error: 'Use application/json.' });
       const body = await readJSON(request);
       if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(body) });
+      if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(body) });
       const cancel = /^\/api\/jobs\/([0-9a-f-]{36})\/cancel$/.exec(pathname);
       if (cancel) return json(response, 200, { job: jobs.cancel(cancel[1]) });
       const permission = /^\/api\/jobs\/([0-9a-f-]{36})\/permission$/.exec(pathname);

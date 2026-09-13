@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { redact } = require('./security');
 const { AcpAgent } = require('./acp');
+const { ExpertRegistry } = require('./experts');
 
 const AGENTS = {
   codex: { label: 'Codex', args: ['exec', '--json', '--color', 'never', '-'] },
@@ -104,6 +105,7 @@ class JobManager {
     this.jobs = new Map();
     this.children = new Map();
     this.acps = new Map();
+    this.experts = options.experts || new ExpertRegistry();
   }
 
   agents() {
@@ -126,6 +128,12 @@ class JobManager {
     if (!agent) throw Object.assign(new Error('Unsupported agent.'), { statusCode: 400 });
     if (!agent.available) throw Object.assign(new Error(agent.reason), { statusCode: 409 });
     if (typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > 32768) throw Object.assign(new Error('Prompt must contain 1–32768 bytes.'), { statusCode: 400 });
+    let expert = null;
+    if (input.expert !== undefined && input.expert !== null && input.expert !== '') {
+      if (typeof input.expert !== 'string' || input.expert.length > 64) throw Object.assign(new Error('Expert must be a known expert id.'), { statusCode: 400 });
+      expert = this.experts.find(input.expert);
+      if (!expert) throw Object.assign(new Error('Unknown expert. Create it in the Experts view first.'), { statusCode: 400 });
+    }
     if (this.children.size >= 2) throw Object.assign(new Error('Two jobs are already active. Wait or cancel one.'), { statusCode: 409 });
     let cwd;
     try {
@@ -140,14 +148,15 @@ class JobManager {
     }
     const skipped = automatic ? ROUTES[taskClass].slice(0, ROUTES[taskClass].indexOf(agent.id)).map(id => `${id} (${allAgents.find(item => item.id === id).status})`) : [];
     const definition = AGENTS[agent.id];
-    const job = { id: crypto.randomUUID(), agent: agent.id, provider: agent.id, cwd, taskClass, routingReason: automatic ? `${taskClass} route selected ${agent.label} by installed capability; authentication unverified.${skipped.length ? ` Skipped: ${skipped.join(', ')}.` : ''}` : `Explicit provider selection: ${agent.label}; authentication unverified.`, sessionId: null, model: null, status: 'running', startedAt: new Date().toISOString(), endedAt: null, exitCode: null, stopReason: null, permissions: [], summary: redact(input.prompt.replace(/\s+/g, ' ')).slice(0, 180), logTail: '' };
+    const job = { id: crypto.randomUUID(), agent: agent.id, provider: agent.id, expert: expert?.id || null, expertLabel: expert?.label || null, cwd, taskClass, routingReason: `${expert ? `Route3 expert ${expert.label}; ` : ''}${automatic ? `${taskClass} route selected ${agent.label} by installed capability; authentication unverified.${skipped.length ? ` Skipped: ${skipped.join(', ')}.` : ''}` : `Explicit provider selection: ${agent.label}; authentication unverified.`}`, sessionId: null, model: null, status: 'running', startedAt: new Date().toISOString(), endedAt: null, exitCode: null, stopReason: null, permissions: [], summary: redact(input.prompt.replace(/\s+/g, ' ')).slice(0, 180), logTail: '' };
     this.jobs.set(job.id, job);
-    if (definition.acp) this.launchAcp(job, definition, agent, input);
-    else this.launchProcess(job, definition, agent, input);
+    const taskBrief = `${expert ? `Route3 expert assignment — ${expert.label} (${expert.focus}).\n${expert.brief}\n\n` : ''}Use the installed route3 skill to handle this task. Preserve configured model preferences and normal approval policies.\n\n${input.prompt}`;
+    if (definition.acp) this.launchAcp(job, definition, agent, taskBrief);
+    else this.launchProcess(job, definition, agent, taskBrief);
     return { ...job };
   }
 
-  launchProcess(job, definition, agent, input) {
+  launchProcess(job, definition, agent, taskBrief) {
     const call = invocation(agent.path, definition.args, this.env);
     const child = spawn(call.command, call.args, { shell: false, cwd: job.cwd, env: call.env, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
     this.children.set(job.id, child);
@@ -186,11 +195,11 @@ class JobManager {
     child.on('error', () => finish(null, true));
     child.on('close', code => finish(code, false));
     child.stdin.on('error', () => { /* early CLI rejection; close reports failure */ });
-    child.stdin.end(`Use the installed route3 skill to handle this task. Preserve configured model preferences and normal approval policies.\n\n${input.prompt}`);
+    child.stdin.end(taskBrief);
   }
 
-  launchAcp(job, definition, agent, input) {
-    const brief = `Use the installed route3 skill to handle this task. Preserve configured model preferences and normal approval policies.\n\n${input.prompt}`;
+  launchAcp(job, definition, agent, taskBrief) {
+    const brief = taskBrief;
     let bytes = 0, rawTail = '';
     const append = value => {
       bytes += Buffer.byteLength(value);

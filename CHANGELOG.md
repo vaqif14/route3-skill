@@ -1,6 +1,9 @@
 # 2.0.0 — Measured orchestration and Mac control center
 
 - Add local session usage accounting, context recommendations and private checkpoints.
+- Add Route3 internal experts: curated frontend/backend/fullstack/QA/security agents
+  plus panel-created custom experts; the expert brief is prepended to the job brief
+  for every provider, custom experts persist privately with bounded validation.
 - Add native Mac control center with real agent jobs and OpenClaw/browser/Telegram controls.
 - Run Kimi jobs over ACP so its tool approvals arrive in the panel instead of being
   auto-approved; unknown agent requests get a deterministic JSON-RPC error and

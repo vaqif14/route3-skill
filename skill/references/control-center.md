@@ -29,6 +29,11 @@ compact action; do not truncate transcripts or patch a host's session database.
 
 Agent jobs use fixed CLI argument arrays and a bounded stdin brief, with a
 concurrency limit, timeout, bounded log tail and cancellation of owned processes.
+A Route3 expert (built-in frontend/backend/fullstack/QA/security or a
+panel-created custom expert) prepends its specialty instructions to that brief —
+the expert travels with the task to whichever provider runs it; it is not a
+separate model or credential. Custom experts live locally, are validated and
+redacted, and are created/removed only from the panel with the session token.
 Kimi jobs run over ACP instead: the agent's `session/request_permission` requests
 become decision cards in the panel, unknown agent requests are answered with a
 JSON-RPC error rather than hanging, and stopping a job denies every open approval.

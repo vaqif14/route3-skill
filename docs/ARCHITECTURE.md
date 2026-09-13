@@ -31,6 +31,13 @@ server requests into job state (`awaiting_approval` plus permission cards in the
 panel), answers unknown server requests with a JSON-RPC error so an agent never
 hangs, and answers every open approval with `cancelled` when a job is stopped.
 
+The expert layer (`experts.js`) is provider-agnostic: a curated set of internal
+specialties (frontend, backend, fullstack, QA, security) plus panel-created
+custom experts are stored in `~/.local/share/route3/experts.json` (atomic,
+private, bounded, redacted). Selecting an expert prepends its specialty brief to
+the job brief, so the same expert works unchanged across Codex, Claude, Gemini
+and Kimi/ACP; the provider still executes with its own models and permissions.
+
 The native Mac app owns at most one server process: it attaches to a healthy
 server when one exists, starts `node control-center/server.js` only when the
 port is dead, and on quit stops only a server it started itself.

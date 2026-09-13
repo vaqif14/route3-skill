@@ -43,6 +43,10 @@ provider may still require its normal login, quota or permission interaction.
 - **Context decisions:** 65% prepares a handoff, 80% recommends compact at a task
   boundary, 90% marks urgency. These configurable operational thresholds use
   the reported context window and latest-request proxy, never lifetime spend.
+- **Route3 experts:** built-in internal agents (frontend, backend, fullstack,
+  QA, security) whose specialty instructions are prepended to the task brief of
+  whichever provider runs the job; the Experts view creates and removes custom
+  experts, stored privately under `~/.local/share/route3/experts.json`.
 - **Agent jobs:** actual subprocess state, bounded redacted logs and cancellation.
   Kimi runs over ACP, so its tool approvals appear as decision cards in the panel
   instead of being auto-approved; cancelling a job denies any open approval.
