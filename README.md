@@ -1,213 +1,103 @@
-# route3-skill
+# Route3
 
-**Route3** — boss orchestrator skill for Claude Code and Cursor. Clarify completely (D1–D11), declare AGENT_MAP, dispatch with a full DISPATCH_PROMPT, then execute via Codex → Kimi → native experts. SaaS/no-MVP; never self-writes product code.
+Route3 supervises agent work with measured session usage, bounded context handoffs,
+and a Mac control center for agent jobs, OpenClaw, browser and Telegram lifecycle.
 
-`v1.4.3` · MIT · Node ≥ 18 · Install: `github:vaqif14/route3-skill`
+## Local setup
 
-## What it is / is not
-
-| Is | Is not |
-|---|---|
-| Boss orchestrator: clarify → classify risk → route writers → verify → review → done | A Temporal / durable-workflow platform |
-| Filesystem-first run artifacts under `.workflow/route3/` | A control-panel UI or auto-merge bot |
-| Opt-in **factory** path for high-risk / multi-slice work | Hermes / MEMANTO memory (MEMANTO dual-write from lessons is optional) |
-| Mandatory **self-improve** lessons on FAIL | Mid-task silent rewrites of `SKILL.md` |
-
-## Iron laws
-
-1. **Clarify → execute.** Scan D1–D11 (incl. ideal_final_refs), package Goal/AC + AGENT_MAP, wait for confirm, then `check-preflight.sh`. Before Codex/Kimi/Task write DISPATCH_PROMPT (`dispatch-prompt-contract.md`). SaaS/no-MVP. Never code first.
-2. **Boss never self-writes.** `primary=native` means Task/Agent `route3-*`, not main-thread edits. Ops/smoke under `/route3` is not an exception. See `skill/references/boss-discipline.md`.
-3. **Codex → Kimi → native.** `route-slice.sh` picks primary; fail over on quota; AC stays identical. Never invent primary.
-4. **Self-improve is mandatory and evidence-bound.** Verify FAIL / reviewer FIX|REJECT / BUILD_PROOF fail → `record-lesson.sh` with VERIFY/digest evidence (`quality=bound`). Factory done ignores unbound lessons and PLAN-only `LESSON_RECORDED` theater.
-5. **Product may refuse.** Factory PRODUCT returns a `VERDICT:` — `SCRAP`/`PARK` blocks architecture until a human records `PRODUCT_OVERRIDE:`. When something breaks, diagnose the layer first: **harness** (cannot operate) / **loop** (flaky, repeats) / **graph** (branching, approvals).
-
-## Risk paths
-
-| Path | When | Spine |
-|---|---|---|
-| `trivial` | Typo / ~20-line rename; no schema/auth/pay | Skip factory; `--trivial` done gate |
-| `standard` | **Default** (~80% features) | Clarify → plan approval → slice → verify → review → done |
-| `factory` | Multi-slice **or** high-risk (auth/pay/PII/migration/…) — **opt-in** | Run-dir + VALIDATED stages + BRIEF + verify-slice + lessons |
+Requires Node.js 18+ for the control center. Each provider CLI can require a newer
+runtime; OpenClaw installed through NVM uses its adjacent Node executable.
+Building the native Mac app also requires Apple's command line developer tools.
 
 ```bash
-scripts/classify-risk.sh --write PLAN.md
-# or: scripts/check-preflight.sh PLAN.md --classify
+node bin/route3-skill.js install --all
+npm start
 ```
 
-## Install / update / uninstall
+Open **http://127.0.0.1:43173**. To build the native app:
 
 ```bash
-# Install (GitHub)
-npm install -g github:vaqif14/route3-skill
-route3-skill install          # Claude + Cursor (default)
-route3-skill install --all    # explicit both targets
-
-# One-shot without global CLI
-npx github:vaqif14/route3-skill
-
-# Update
-npm update -g github:vaqif14/route3-skill
-route3-skill install --all
-
-# Uninstall
-route3-skill uninstall
-npm uninstall -g route3-skill
+npm run mac
 ```
 
-Copies skill + agents to:
+`npm run mac` compiles the AppKit/WebKit shell into `~/Applications/Route3 Control.app`
+(`build.sh --output DIR` overrides the location, `--open` launches it). The app attaches
+to an already healthy server, starts and owns one only when the port is dead, and stops
+only a server it started itself; its status bar names the current mode and workspace.
 
-| Tool | Paths |
-|---|---|
-| Claude Code | `~/.claude/skills/route3`, `~/.claude/agents/route3` |
-| Cursor | `~/.cursor/skills/route3`, `~/.cursor/agents/route3` |
+The installer supports `--claude`, `--cursor`, `--codex`, `--agents`, `--openclaw`,
+`--all`, and `--dry-run`. It preserves local additions and saves the exact previous
+installation under `~/.local/share/route3/backups/`, outside skill discovery. The
+shared runtime is installed at `~/.local/share/route3/control-center`.
 
-Optional npm registry name: `route3-skill` (when published).
+Invoke `/route3 <task>` in a supported agent host, or use the panel to launch an
+installed agent. CLI presence is shown separately from actual job success; a
+provider may still require its normal login, quota or permission interaction.
 
-## Quick start
+## What the panel measures
 
-```text
-/route3 seller dashboard-a order status əlavə et
-```
+- **Sessions:** local Codex, Claude and OpenClaw session records; provider/model,
+  workspace, measured token usage and context occupancy when available.
+- **Token drivers:** observed large input and cache-read share. Input includes
+  cache reads once; cached input is not added again to provider input totals.
+- **Context decisions:** 65% prepares a handoff, 80% recommends compact at a task
+  boundary, 90% marks urgency. These configurable operational thresholds use
+  the reported context window and latest-request proxy, never lifetime spend.
+- **Agent jobs:** actual subprocess state, bounded redacted logs and cancellation.
+  Kimi runs over ACP, so its tool approvals appear as decision cards in the panel
+  instead of being auto-approved; cancelling a job denies any open approval.
+- **Integrations:** existing OpenClaw gateway, browser, and Telegram channel
+  status/lifecycle through supported local commands, with explicit errors.
 
-```text
-/route3 fix login 2FA edge case for parent portal
-```
+Unknown usage stays unknown. Displayed totals describe the sampled sessions,
+not account billing. Tail-only logs are labeled partial; no prices or savings
+percentages are invented. The panel does **not** pretend it can compact another
+application's active conversation. It recommends and supports a durable handoff.
 
-Flow: ask all material questions → you confirm → `classify-risk` → **standard** (default) or **factory** → Codex first, Kimi on quota, native Task/Agent if both dead → review → done report.
-
-More: [docs/QUICKSTART.md](docs/QUICKSTART.md)
-
-## Architecture
-
-```
-                    ┌─────────────┐
-                    │   /route3   │
-                    └──────┬──────┘
-                           ▼
-                    clarify (D1–D11) → AGENT_MAP + DISPATCH_PROMPT
-                           ▼
-                    classify-risk.sh
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-          trivial      standard      factory (opt-in)
-              │            │            ▼
-              │            │      init-run.sh → run-dir
-              │            │            ▼
-              │            │      VALIDATED stages
-              │            │      (research?→product→arch→plan)
-              │            │            ▼
-              │            └────► route-slice.sh
-              │                     ▼
-              │              BUILD (Codex|Kimi|route3-*)
-              │                     ▼
-              │              verify (+ verify-slice factory)
-              │                     ▼
-              │              FAIL? → record-lesson.sh
-              │                     ▼
-              │              review → check-plan-done
-              └───────────────────► done
-```
-
-Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · factory: [docs/FACTORY.md](docs/FACTORY.md) · lessons: [docs/SELF-IMPROVE.md](docs/SELF-IMPROVE.md)
-
-## Scripts cheat sheet
-
-| Script | Role |
-|---|---|
-| `classify-risk.sh` | `trivial` \| `standard` \| `factory` from PLAN |
-| `check-preflight.sh` | Clarify gate before BUILD (`--classify` optional) |
-| `init-run.sh` | Create `.workflow/route3/runs/<id>/` + `STATE.json` |
-| `check-stage.sh` | VALIDATED stage gates (research/product/arch/plan/slice) |
-| `context-pack.sh` | Per-slice `CONTEXT.md` (+ EXPANSION_REQUEST) |
-| `route-slice.sh` | Codex → Kimi → native primary |
-| `assert-build-route.sh` | Boss did not self-write; `--require-dispatch` |
-| `verify-slice.sh` | BRIEF verify presets → generated `VERIFY.md` |
-| `invalidate-stale.sh` | Digest mismatch → STALE |
-| `record-lesson.sh` / `lesson-rollback.sh` / `lesson-list.sh` | Self-improve |
-| `check-plan-done.sh` | Done gate (`--factory --run ID`) |
-| `link-overnight.sh` | Overnight ↔ factory bridge |
-| `eval-factory.sh` / `test-factory-smoke.sh` | Evals / smoke |
-
-All under `skill/scripts/`.
-
-## Agents (`route3-*`) — 32 total
-
-Core writers/reviewers plus **17 curated specialists** from [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) (thin adapters — not the full 362-skill tree). Full catalog: [agents/README.md](agents/README.md) · selection analysis: [docs/CLAUDE_SKILLS_INTEGRATION.md](docs/CLAUDE_SKILLS_INTEGRATION.md).
-
-| Agent | Role |
-|---|---|
-| `route3-architect` | Architecture / contracts |
-| `route3-api-expert` | API / HTTP surfaces |
-| `route3-database-expert` | Schema / migrations |
-| `route3-nextjs-expert` | Next.js app routes |
-| `route3-react-expert` | React UI logic |
-| `route3-ui-expert` | UI implementation |
-| `route3-design-analyst` | Design-from-image |
-| `route3-test-engineer` | Tests |
-| `route3-security-auditor` | Auth / pay / PII |
-| `route3-reviewer` | Independent review (≠ writer) |
-| `route3-improver` | Bounded polish (≤2) |
-| `route3-researcher` | Evidence gathering |
-| `route3-notebooklm-expert` | NotebookLM / NBLM research → clarify |
-| `route3-docs-writer` | Docs |
-| `route3-skill-user` | Skill application |
-| `route3-ship-gate` | Final ship checklist — never product code |
-| `route3-worktree` | Git worktree / branch isolation |
-| `route3-handoff` | Expert CONTEXT packages |
-| `route3-zero-hallucination` | Evidence grades for claims |
-| `route3-adversarial` | Second-pass persona red-team |
-| `route3-spec` | Spec-driven AC → `.workflow` |
-| `route3-observability` | Metrics / logs / traces / SLO |
-| `route3-perf` | Perf / CWV / hot-path |
-| `route3-a11y` | WCAG audit |
-| `route3-migration` | Risky migration architect |
-| `route3-ci` | CI/CD pipeline design |
-| `route3-pr` | PR draft — no auto-push |
-| `route3-tdd` | TDD red-green |
-| `route3-incident` | Incident command / runbooks |
-| `route3-product` | Factory PRODUCT — AC/scope only |
-| `route3-deeplink-research` | Deep multi-source research |
-| `route3-smm` | SMM drafts — dual-approve, never auto-publish |
-
-## Domain teams
-
-Playbooks in `skill/teams/`:
-
-| Signal | Playbook |
-|---|---|
-| Startup / GTM / fundraising | `startup.md` |
-| Formal PMO / charter / WBS | `project.md` |
-| Halal e-commerce | `halal-business.md` |
-| ERP / SaaS / multi-tenant | `enterprise.md` |
-| Website agency / outreach | `website-agency.md` |
-
-## Documentation
-
-| Doc | Contents |
-|---|---|
-| [docs/QUICKSTART.md](docs/QUICKSTART.md) | Install, first task, factory sequence, troubleshooting |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, truth precedence, gates, non-goals |
-| [docs/FACTORY.md](docs/FACTORY.md) | Risk classify, stages, BRIEF, stale, overnight |
-| [docs/SELF-IMPROVE.md](docs/SELF-IMPROVE.md) | Mandatory lessons, rollback, MEMANTO |
-| [docs/CLAUDE_SKILLS_INTEGRATION.md](docs/CLAUDE_SKILLS_INTEGRATION.md) | Curated alirezarezvani skill → agent analysis |
-| [agents/README.md](agents/README.md) | Full `route3-*` agent catalog |
-| [skill/references/README.md](skill/references/README.md) | Progressive reference index |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
-
-## Testing
+## Checkpoint before compact
 
 ```bash
-npm test                          # factory smoke (test-factory-smoke.sh)
-bash skill/scripts/eval-factory.sh
+node skill/scripts/session-budget.js status --cwd /path/to/project
+node skill/scripts/session-budget.js snapshot --cwd /path/to/project
+node skill/scripts/session-budget.js checkpoint --cwd /path/to/project < checkpoint.json
 ```
 
-Also: `eval-clarify.sh`, `eval-triggers.sh` + JSON fixtures under `skill/evals/`.
+A checkpoint contains `goal`, `nextAction`, and string arrays `constraints`,
+`changedFiles`, `verification`, `blockers`, `authorization`. It is limited to 32 KB
+and written atomically with private permissions. Use `--session <id>` when several
+sessions share a project. Then compact through the current host's supported
+operation; saving a checkpoint alone does not alter its active context.
 
-## Roadmap
+## Execution model
 
-- **Now:** filesystem-first factory, auto risk classify, stale gates, mandatory lessons, overnight bridge.
-- **Deferred:** Temporal runtime, control-panel UI, auto-merge / FINAL PR automation, heavy program-designer / full c-level packs (see CLAUDE_SKILLS_INTEGRATION DEFER/REJECT).
+Default Route3 work uses the smallest useful team and brief. Already authorized,
+clear work proceeds without a repeated plan approval or paid “reply OK” probe.
+The user's configured models and permissions remain authoritative. Each delegated
+writer gets owned paths and acceptance checks, rather than the full transcript.
+
+Existing class-aware routing, repository context engine, artifact factory,
+dispatch evidence, lessons and opt-in hooks are retained for existing factory
+runs. Their larger ceremony is explicit, not imposed on every ordinary task.
+The [skill entrypoint](skill/SKILL.md) defines the current operating contract.
+
+The control server binds to loopback and checks Host, Origin and a mutation token.
+It uses fixed executable/argument definitions, bounds concurrency and output, and
+terminates only jobs it owns. It does not expose an arbitrary shell endpoint or
+copy bot credentials. A local application is not a multi-user remote service.
+
+## Verification
+
+```bash
+npm test
+npm run test:legacy
+npm run test:context
+npm run test:hooks
+```
+
+Tests use temporary fixtures/fake executables; they do not send paid model prompts
+or mutate the live gateway. Native compilation and browser checks should accompany
+UI changes. See [architecture](docs/ARCHITECTURE.md) for component boundaries.
 
 ## License
 
-[MIT](LICENSE) © 2026 vaqif14
+MIT. See [LICENSE](LICENSE).

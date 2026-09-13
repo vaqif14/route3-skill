@@ -53,6 +53,11 @@ Scope: an entire execution backend (e.g. "Sol CLI", "Kimi CLI", "Gemini G1").
 | `OPEN` | Repeated hard fails | Skip this backend for cooldown |
 | `HALF_OPEN` | Cooldown elapsed | One probe slice only; success → CLOSED |
 
+**Not the same token as the probe status.** `probe-backends.sh` reports
+`GREEN|BLOCKED|MISSING` per backend; the L1 breaker states above are
+`CLOSED|DEGRADED|OPEN|HALF_OPEN`. A breaker `OPEN` means "stop calling for a
+cooldown"; a probe `BLOCKED` means "this CLI answered unusably right now".
+
 Trip on: auth death, quota 403 with `limit: 0`, repeated process crash, "Not inside
 a trusted directory" after preflight already set, provider billing hard-fail.
 

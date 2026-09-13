@@ -1,9 +1,85 @@
+# 2.0.0 — Measured orchestration and Mac control center
+
+- Add local session usage accounting, context recommendations and private checkpoints.
+- Add native Mac control center with real agent jobs and OpenClaw/browser/Telegram controls.
+- Run Kimi jobs over ACP so its tool approvals arrive in the panel instead of being
+  auto-approved; unknown agent requests get a deterministic JSON-RPC error and
+  cancellation denies every open approval.
+- Build the AppKit/WebKit shell (`npm run mac`) with explicit server ownership: attach to
+  a healthy external server, start and own one only when none exists, stop only what it owns.
+- Make default dispatch bounded and avoid repeated approval ceremony and paid availability probes.
+- Preserve active class-aware routing, context engine and opt-in factory hooks.
+- Replace destructive upgrades with staged installs and backups; support Codex and OpenClaw skill paths.
+- Add fixture-based telemetry, process, ACP, HTTP boundary, installer and checkpoint validation.
+
 # Changelog
 
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.5.0] - 2026-08-08
+
+Three layered failures kept the skill from ever acting as a boss orchestrator:
+the Codex probe could not succeed, activation was non-deterministic, and
+dispatch was self-attested. A/B/C below fix them.
+
+### Fixed
+
+- **(A) Codex is selectable again.** `probe-backends.sh` passed the probe prompt
+  as `-p`, which is `--profile` on codex-cli ≥ 0.144 — every probe errored, so
+  `sol` was always classified unusable and `route-slice.sh` always emitted
+  `primary=native reason=codex_and_kimi_quota`. The prompt is now positional.
+- **(A) Success is checked before failure.** The classifier tested error/quota
+  patterns first, so unrelated stderr (`ERROR rmcp::transport::worker` from an
+  MCP server, `ERROR codex_models_manager` from the model cache) produced a
+  false negative; only `tail -n 5` accidentally masked it. `OK` is now matched
+  first, with a word boundary so `TOKENS` cannot fake a pass, over `tail -n 20`.
+
+### Added
+
+- **(B) `skill/commands/route3.md`** — a real `/route3` slash command. No command
+  file existed anywhere, so activation depended on the model choosing to load
+  the skill. The command hard-codes the boot order: read `SKILL.md` in full →
+  `route-slice.sh --probe` and log `ROUTE_DECISION` **before** touching any
+  product file → clarify D1–D11 → DISPATCH_PROMPT → dispatch → evidence gate.
+- **(B) Installer ships the command.** `skillPaths()` gained a `commands` entry
+  (`~/.claude/commands/route3.md`, `~/.cursor/commands/route3.md`), copied on
+  `install` and removed on `uninstall`; the parent dir is created if absent.
+- **(C) `DISPATCH_TOKEN` + `WRITER_ACK`.** `route-slice.sh` stamps a random token
+  into `.workflow/route3/DISPATCH_TOKEN` at route time. Every writer must append
+  `WRITER_ACK: agent=<name> token=<token> at=<ISO8601>` to
+  `.workflow/route3/WRITER_ACK.md` as part of returning.
+- **(C) `skill/scripts/assert-dispatch-evidence.sh`** — fails unless an ack
+  matches the routed token and its agent is not the boss. Wired into
+  `assert-build-route.sh --require-dispatch` and required **immediately after
+  BUILD**, not only at done-time. Same evidence-binding idea as
+  `record-lesson.sh` `quality=bound` vs `unbound`.
+- **(C) `skill/evals/route-evals.json` + `scripts/eval-route.sh`** — 9 offline
+  assertions (probe GREEN incl. under stderr noise, quota → BLOCKED, `sol=GREEN`
+  → `primary=codex`, and missing / stale / boss-authored / valid acks). Runs as
+  step 12 of `test-factory-smoke.sh`.
+
+### Changed
+
+- Package version **1.5.0**
+- **Default builder is now Codex**, per the intended Codex → Kimi → native
+  ladder. There is no flag to restore the old always-native behavior.
+- Backend probe status `OPEN` renamed to **`BLOCKED`** — `OPEN` read as
+  "available" while meaning "unusable". Updated in `probe-backends.sh`,
+  `route-slice.sh`, `cli-backends.md`, `native-primary.md`. The circuit-breaker
+  states in `routing-resilience.md` (`CLOSED|DEGRADED|OPEN|HALF_OPEN`) are a
+  separate standard namespace and keep `OPEN`, now explicitly disambiguated.
+- `SKILL.md` `description` leads with the `/route3` trigger; long tail dropped.
+- `dispatch-prompt-contract.md` STOP / RETURN carries the mandatory WRITER_ACK,
+  so Codex, Kimi and native `route3-*` writers all receive it from one source.
+
+### Notes
+
+- Kimi remains genuinely quota-dead (403 for the billing cycle). Its `-p` is a
+  real `--prompt` flag on kimi-code 0.18.0, so no flag-shape fix was needed.
+- Fix D (blocking file-write hook) was explicitly deferred and is not included.
 
 ## [1.4.3] - 2026-08-08
 

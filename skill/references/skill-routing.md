@@ -86,6 +86,9 @@ gate lives in `factory-contract.md` § Product verdict gate.
 | `copywriting` / `davidondrej-copywriting` | Microcopy/CTA; AZ default |
 | `seo` / matching `seo-*` | SEO/GEO/schema/sitemap tasks |
 
+### Research / web extraction (built-in CLI)
+`defuddle parse <url> --md` — clean-markdown web-extraction CLI (~99% smaller than raw HTML, savable to file + greppable). Research agents (`route3-researcher`, `route3-deeplink-research`, `route3-zero-hallucination`) prefer it over WebFetch for non-`.md` page reads; fall back to WebFetch on failure or for `.md`/API URLs. Not a Claude skill — no Skill invoke; agents call it via Bash. Install: `npm i -g defuddle`.
+
 ### Ponytail (always-on for code Builds)
 Not a separate Skill tool invoke unless user installed upstream `ponytail` plugin. Boss/experts **Read** `~/.claude/skills/route3/references/ponytail-ladder.md` and put `PONYTAIL:` in the brief. If user pins `/ponytail` and the upstream skill is installed, invoke it; else the adapted ladder is enough.
 

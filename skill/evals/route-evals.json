@@ -1,0 +1,76 @@
+{
+  "version": "1.5.0",
+  "description": "Shell assertions for backend probe + dispatch-evidence gates (see scripts/eval-route.sh)",
+  "cases": [
+    {
+      "id": "probe-green-healthy-cli",
+      "name": "Healthy CLI answering OK probes GREEN",
+      "expect": "sol=GREEN"
+    },
+    {
+      "id": "probe-green-despite-stderr-noise",
+      "name": "Unrelated stderr ERROR noise must not mask a GREEN backend",
+      "expect": "sol=GREEN"
+    },
+    {
+      "id": "probe-blocked-on-quota",
+      "name": "Quota/usage-limit CLI probes BLOCKED (not OPEN)",
+      "expect": "sol=BLOCKED"
+    },
+    {
+      "id": "probe-kimi-blocked-on-quota",
+      "name": "Kimi keeps -p/--prompt and reports BLOCKED on quota death",
+      "expect": "kimi=BLOCKED"
+    },
+    {
+      "id": "route-primary-kimi-when-both-green",
+      "name": "Kimi is default primary when Kimi and Codex are both GREEN",
+      "expect": "primary=kimi"
+    },
+    {
+      "id": "route-primary-codex-when-kimi-dead",
+      "name": "Codex is second when Kimi is dead and sol=GREEN",
+      "expect": "primary=codex"
+    },
+    {
+      "id": "route-primary-gemini-on-design-class",
+      "name": "--class design routes Gemini first even if Kimi+Codex are GREEN",
+      "expect": "primary=gemini"
+    },
+    {
+      "id": "route-primary-zai-on-planning-class",
+      "name": "--class planning routes z.ai first even if Kimi+Codex are GREEN",
+      "expect": "primary=zai"
+    },
+    {
+      "id": "route-primary-zai-when-prior-cli-dead",
+      "name": "zai=GREEN after Codex+Kimi death routes primary=zai and invokes it",
+      "expect": "primary=zai"
+    },
+    {
+      "id": "route-primary-gemini-when-prior-cli-dead",
+      "name": "gemini=GREEN after prior CLI death routes primary=gemini (not native skip)",
+      "expect": "primary=gemini"
+    },
+    {
+      "id": "dispatch-without-writer-ack-fails",
+      "name": "BUILDER_DISPATCH with no WRITER_ACK fails --require-dispatch",
+      "expect": "fail"
+    },
+    {
+      "id": "dispatch-with-stale-token-fails",
+      "name": "WRITER_ACK carrying a stale token fails the evidence gate",
+      "expect": "fail"
+    },
+    {
+      "id": "dispatch-boss-authored-ack-fails",
+      "name": "Boss-authored WRITER_ACK (agent=boss) is not evidence",
+      "expect": "fail"
+    },
+    {
+      "id": "dispatch-with-writer-ack-passes",
+      "name": "WRITER_ACK from a non-boss agent bound to DISPATCH_TOKEN passes",
+      "expect": "ASSERT OK"
+    }
+  ]
+}

@@ -4,3 +4,5 @@ node_modules/
 .npm/
 dist/
 .workflow/
+.cursor/
+control-center/mac/build/

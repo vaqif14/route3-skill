@@ -1,20 +1,31 @@
-# Backend route — Codex → Kimi → native
+# Backend route — class-aware (Kimi default)
 
 Callers: `SKILL.md` hard rule #1; `slim-v3-contract.md`; `cli-backends.md`;
-boss BUILD path. Enforced by `scripts/route-slice.sh`.
+boss BUILD path. Enforced by `scripts/route-slice.sh --class …`.
 
-**User policy (mandatory):** every non-trivial coding slice **must** try Codex
-(Sol via `codex exec`) first. If Codex is quota/OPEN/MISSING → Kimi. If both
-are dead → **dispatch** native `route3-*` experts via Task/Agent (identical AC,
-no apology, no ask which model). Boss never becomes the writer — see
+**User policy (mandatory):** pick the slice **class**, then invoke the first
+GREEN backend on that class ladder. Boss never becomes the writer — see
 `boss-discipline.md`.
+
+| Class | When | Ladder (first GREEN wins) |
+|---|---|---|
+| `code` (default) | Implementation, bugfix, tests, API | **Kimi → Codex → Gemini → z.ai → native** |
+| `design` | UI/UX, visual, layout, design-image | **Gemini → Kimi → Codex → z.ai → native** |
+| `planning` | Feature planning, PRODUCT, roadmap | **z.ai → Kimi → Codex → Gemini → native** |
+| `discussion` | Agent debate, critique, fusion | **z.ai → Kimi → Codex → Gemini → native** |
+
+Kimi is the **default implementer**. Codex is **second** on code slices.
+Gemini owns design. z.ai owns planning and agent discussion. All four stay
+active: if the class-preferred CLI is dead, fail over — do not skip a GREEN
+rung and do not boss-write.
 
 ## Router (run before BUILD)
 
 ```bash
-~/.claude/skills/route3/scripts/route-slice.sh --probe   # first slice / no cache
-~/.claude/skills/route3/scripts/route-slice.sh           # reuse session cache
-# → ROUTE_DECISION: primary=codex|kimi|native reason=…
+~/.claude/skills/route3/scripts/route-slice.sh --probe --class code
+~/.claude/skills/route3/scripts/route-slice.sh --class design
+~/.claude/skills/route3/scripts/route-slice.sh --class planning
+# → ROUTE_DECISION: primary=… class=code|design|planning|discussion …
 ```
 
 Log the `ROUTE_DECISION` line in PLAN.md. Do not invent a different order.
@@ -23,17 +34,20 @@ Log the `ROUTE_DECISION` line in PLAN.md. Do not invent a different order.
 
 | Fact | Rule |
 |---|---|
-| Default builder | **Codex first** (`primary=codex` when `sol=GREEN`) |
-| Codex dead | **Kimi** (`primary=kimi` when `kimi=GREEN`) |
-| Both dead | **Native** `route3-*` via Task/Agent — never stop; never ask; **never boss-write** |
+| Default builder | **Kimi first** on `class=code` (`primary=kimi` when `kimi=GREEN`) |
+| Kimi dead (code) | **Codex second** (`primary=codex` when `sol=GREEN`) |
+| Design slice | **Gemini first** (`--class design`) |
+| Planning / discussion | **z.ai first** (`--class planning` or `--class discussion`) |
+| Preferred CLI dead | Next GREEN on that class ladder — invoke, do not skip |
+| All four CLIs dead | **Native** `route3-*` via Task/Agent — never stop; never ask; **never boss-write** |
 | Quality bar | Same Done means as `slim-v3-contract.md` — SaaS / native ≠ MVP; require DISPATCH_PROMPT |
 | Trivial only | Proportionality typo/~20-line may skip probe and stay native |
-| Overnight | Same ladder; if both CLI OPEN → native expert queue (not boss) |
+| Overnight | Same ladder; if both CLI BLOCKED → native expert queue (not boss) |
 
 
 ## DISPATCH_PROMPT before invoke (mandatory)
 
-Before `codex exec` / `kimi` / Task|Agent:
+Before `codex exec` / `kimi` / z.ai / `gemini` / Task|Agent:
 
 1. Clarify complete (D1–D11) + draft `AGENT_MAP`
 2. Write full **DISPATCH_PROMPT** per [`dispatch-prompt-contract.md`](dispatch-prompt-contract.md)
@@ -47,10 +61,14 @@ Before `codex exec` / `kimi` / Task|Agent:
 |---|---|
 | `codex` | `codex exec --model gpt-5.6-sol -s workspace-write -c model_reasoning_effort=high --skip-git-repo-check` |
 | `kimi` | `kimi -m kimi-code/k3 -p "<task>" </dev/null` |
+| `zai` | First match: `lazyglm -p "<task>"` · else `hermes -z "<task>" --provider zai -m glm-5.3 --yolo --cli` · else `zai-cli chat "<task>"` |
+| `gemini` | `env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_API_KEY gemini -m gemini-3-flash-preview -y -p "<task>"` (Cursor fallback: Task `model=gemini-3-flash`) |
 | `native` | Cursor `Task` / Claude Code `Agent` → `route3-*` (parallel disjoint files); same AC |
 
-After invoke, log `BUILDER_DISPATCH:` + ensure PLAN has `AGENT_MAP:` (`boss-discipline.md`, `dispatch-prompt-contract.md`). Run
-`scripts/assert-build-route.sh` (and `--require-dispatch` before done).
+After invoke, log `BUILDER_DISPATCH:` + ensure PLAN has `AGENT_MAP:` (`boss-discipline.md`,
+`dispatch-prompt-contract.md`). Writer must have appended `WRITER_ACK` with the routed
+`DISPATCH_TOKEN`. Run `scripts/assert-dispatch-evidence.sh` immediately after BUILD, then
+`scripts/assert-build-route.sh --require-dispatch` before done.
 
 Auth/pay/PII → always + **mandatory** security-auditor (any primary).
 

@@ -111,6 +111,32 @@ grep -q 'ACTIVE LESSONS' "$RUN_DIR/CONTEXT.md" || { echo "FAIL: context missing 
 "$SCR/verify-slice.sh" --run "$RUN_ID" --slice 001
 grep -q 'VERIFY_STATUS: PASS' "$RUN_DIR/slices/001/VERIFY.md"
 
+# 7b) toolchain identity regression (deterministic, network-free):
+# inject a fake `node` shim at the front of PATH and require verify-slice to
+# run exactly THAT executable. bash -lc re-sources login profiles (path_helper
+# et al.) which rebuild PATH and shadow the shim -> marker missing -> FAIL.
+# bash -c inherits the invoking PATH -> shim wins -> marker present -> PASS.
+SHIM_BIN="$TMP/shim-bin"
+mkdir -p "$SHIM_BIN"
+cat > "$SHIM_BIN/node" <<'SH'
+#!/usr/bin/env bash
+echo "R3_INJECTED_TOOLCHAIN_MARKER"
+exit 0
+SH
+chmod +x "$SHIM_BIN/node"
+mkdir -p "$RUN_DIR/slices/099"
+cat > "$RUN_DIR/slices/099/BRIEF.md" <<'P'
+slice: "099"
+goal: toolchain identity regression
+verify:
+  - "node --version"
+P
+PATH="$SHIM_BIN:$PATH" "$SCR/verify-slice.sh" --run "$RUN_ID" --slice 099
+grep -q 'R3_INJECTED_TOOLCHAIN_MARKER' "$RUN_DIR/slices/099/VERIFY.md" \
+  || { echo "FAIL: verify-slice lost invoking PATH (login-shell toolchain drift)"; exit 1; }
+grep -q 'VERIFY_STATUS: PASS' "$RUN_DIR/slices/099/VERIFY.md" \
+  || { echo "FAIL: toolchain identity slice did not verify"; exit 1; }
+
 # 8) record-lesson + lesson-rollback (evidence-bound; fluff rejected)
 set +e
 "$SCR/record-lesson.sh" --title "test" --reason "oops" --run "$RUN_ID" --slice 001 >/tmp/route3-fluff-lesson.out 2>/tmp/route3-fluff-lesson.err
@@ -149,5 +175,8 @@ python3 -c 'import json; s=json.load(open(".workflow/route3/runs/runB/STATE.json
 
 # 11) eval-factory
 "$SCR/eval-factory.sh"
+
+# 12) eval-route (probe classification + dispatch evidence)
+"$SCR/eval-route.sh"
 
 echo "SMOKE OK"

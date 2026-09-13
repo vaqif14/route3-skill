@@ -70,6 +70,13 @@ resolve_preset() {
 # Allowlist prefixes (min effort safety) — checked AFTER preset resolve
 ALLOW_RE='^(npm |npx |pnpm |yarn |node |python3 |pytest |vitest |cargo |go test|dotnet |make |bundle exec |tsc|eslint)'
 
+# Harness toolchain identity: run BRIEF commands in a NON-login shell (bash -c,
+# never bash -lc) so the invoking PATH and node/npm toolchain are preserved.
+# bash -lc sources login profiles that prepend e.g. /opt/homebrew/bin and swap
+# node v22 (invoking) for node v26, causing toolchain identity drift and
+# phantom verify failures. bash -c inherits this process's PATH unchanged.
+RUN_CMD=(bash -c)
+
 BASE_SHA=$(git rev-parse HEAD 2>/dev/null || echo unknown)
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PASS=0; FAIL=0
@@ -97,11 +104,11 @@ for raw in "${CMDS[@]}"; do
   fi
   start=$(date +%s)
   set +e
-  out=$(bash -lc "$cmd" 2>&1 | tail -n 40)
+  out=$("${RUN_CMD[@]}" "$cmd" 2>&1 | tail -n 40)
   code=$?
   # test:unit fallback to npm test
   if [[ "$raw" == "test:unit" && "$code" -ne 0 ]]; then
-    out2=$(bash -lc "npm test" 2>&1 | tail -n 40)
+    out2=$("${RUN_CMD[@]}" "npm test" 2>&1 | tail -n 40)
     code2=$?
     if [[ "$code2" -eq 0 ]]; then
       out="$out"$'\n'"# fallback npm test"$'\n'"$out2"

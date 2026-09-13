@@ -1,135 +1,72 @@
-# Architecture
+# Route3 architecture
 
-Route3 is a **boss orchestrator** packaged as an installable skill. The main agent clarifies, routes, and gates; writers (Codex / Kimi / `route3-*` Task|Agent) produce code; independent reviewers and scripts own truth.
+## Current operating contract
 
-## Components
+`skill/SKILL.md` is the short entrypoint. Session governance, efficient dispatch
+and control-center operations are loaded only as needed. It does not require
+factory ceremony for ordinary tasks. Existing factory references/scripts retain
+their stage/token/evidence contract when that workflow is explicitly selected.
 
-| Component | Location | Role |
-|---|---|---|
-| Skill entry | `skill/SKILL.md` | Progressive disclosure, iron laws, mode spines |
-| Agents | `agents/route3-*.md` (32) | Expert definitions installed under `~/.claude|cursor/agents/route3/` — core + curated specialists. Catalog: [../agents/README.md](../agents/README.md). Selection: [CLAUDE_SKILLS_INTEGRATION.md](CLAUDE_SKILLS_INTEGRATION.md) |
-| Scripts | `skill/scripts/*.sh` | Preflight, risk, factory stages, route, verify, lessons, done |
-| References | `skill/references/*` | Contracts loaded on demand (see [references/README.md](../skill/references/README.md)) |
-| Domain teams | `skill/teams/*.md` | Startup / project / halal / enterprise / agency playbooks |
-| Evals | `skill/evals/*.json` + `eval-*.sh` | Clarify / factory / trigger regression fixtures |
-| Run artifacts | `.workflow/route3/runs/<run-id>/` | Factory STATE, stages, slices, TRACE (per repo) |
-| Lessons | `.workflow/route3/lessons/` | Append-only self-improve log |
-
-## Harness / Loop / Graph
-
-Diagnostic vocabulary for **where** an agent system fails, mapped onto what Route3 already ships.
-
-| Layer | Question | Route3 surface |
-|---|---|---|
-| **Harness** | Can it operate at all? | skill scripts, `agents/route3-*`, `STATE.json`, `route-slice.sh`, security postures (`skill/references/qm-harness-ops.md`) |
-| **Loop** | Does it converge on evidence? | `verify-slice.sh`, `BUILD_PROOF`, reviewer ≠ writer, improver ≤ 2, lessons (`skill/references/loop-contract.md`) |
-| **Graph** | Which next step is allowed? | factory stage machine, ownership waves, gate branches (`factory-contract.md`, `parallel-ownership.md`) |
-
-### Diagnose before fix
-
-| Symptom | Layer | First move |
-|---|---|---|
-| Cannot operate — missing tool / creds / state / permission | **harness** | fix tools, state, permissions; more retries will not help |
-| Almost works · flaky · repeats the same mistake | **loop** | tighten evidence + stop rules; record a bound lesson |
-| Complex branching · specialists · approvals tangled | **graph** | fix stage / wave / gate edges, not the prompt |
-
-This is a **diagnostic vocabulary, NOT a second spine** — Route3 keeps one spine (clarify → route → build → verify → review → done). Do not create parallel frameworks, engines, or workflow files from these three words.
-
-## Standard vs factory data flow
-
-### Standard (default)
-
-```
-profile + MEMANTO (optional)
-  → skill autodecide
-  → clarify D1–D10 until open_branches=none
-  → package + user confirm
-  → check-preflight.sh
-  → classify-risk.sh  (usually → standard)
-  → route-slice.sh → assert-build-route.sh
-  → BUILD (Codex | Kimi | Task/Agent route3-*)
-  → log BUILDER_DISPATCH
-  → test → review [+security] → improver ≤2
-  → BUILD_PROOF + SLICE_EVAL
-  → assert-build-route.sh --require-dispatch
-  → check-plan-done.sh
-  → ≤15-line report
-```
-
-PLAN markers in the working tree (or `.workflow/PLAN.md`) are the compatibility bridge. No run-dir required.
-
-### Factory (opt-in)
-
-Triggered when `FACTORY: class=factory` after `classify-risk` (multi-slice or high-risk tokens).
-
-```
-classify-risk → FACTORY: class=factory
-  → init-run.sh --path factory
-       creates .workflow/route3/runs/<id>/{STATE.json,TRACE.jsonl,slices/}
-  → VALIDATED stages: research? → product → architecture → plan
-       (exactly one human APPROVED: PLAN_APPROVAL)
-  → per slice:
-       BRIEF.md → context-pack.sh → route-slice → BUILD → verify-slice.sh
-       FAIL → record-lesson.sh
-       invalidate-stale.sh when upstream digests change
-  → check-plan-done.sh --factory --run <id>
-```
-
-If `class=factory` is declared but `init-run.sh` never ran, treat as **standard** until a run exists.
-
-## Truth precedence
-
-When sources disagree, higher wins:
-
-1. **`STATE.json`** — authoritative machine state (stage, path, slice terminals, digests)
-2. **Stage / BRIEF artifacts** — decisions (`01-RESEARCH` … `05-PLAN`, `slices/NNN/BRIEF.md`)
-3. **`VERIFY.md`** — generated observations / command evidence (never builder prose)
-4. **`TRACE.jsonl`** — append-only audit; never overrides STATE
-5. **Legacy PLAN markers** — compat bridge; write-through to run artifacts when on factory path
-
-## Gate kinds
-
-| Kind | Who sets it | Examples |
-|---|---|---|
-| **VALIDATED** | Script or specialist agent | `check-stage.sh`, `verify-slice.sh` PASS, research complete |
-| **APPROVED** | **Human user only** | `PLAN_APPROVAL: approved\|continue\|yes_to_all` |
-
-Never auto-`APPROVED` overnight. Overnight freezes the plan at queue time; mid-loop stages stay VALIDATED-by-script only. Existing user gates (destructive / prod / money / secrets / publish / dependency) are unchanged.
-
-## Boss / writer / reviewer separation
-
-| Role | May | Must not |
-|---|---|---|
-| **Boss** (main `/route3` thread) | Clarify, classify, init-run, dispatch, run gate scripts, record lessons, relay debate | Author product/arch content, write product code, rescue-fix verify, self-approve stages, invent primary |
-| **Writer** (Codex / Kimi / `route3-*`) | Edit allowed files per BRIEF / ownership | Set reviewer verdicts or APPROVED gates |
-| **Reviewer** (`route3-reviewer`, `route3-security-auditor`, `route3-adversarial`, `route3-ship-gate`) | Independent FIX / PASS / REJECT / ship checklist | Be the same agent that wrote the slice; never write product code |
-
-`assert-build-route.sh` + `BUILDER_DISPATCH` enforce that the chosen primary was actually invoked. Missing dispatch ⇒ NOT DONE.
-
-## Relation to MEMANTO
-
-MEMANTO is **optional** and external. Route3’s source of truth for lessons is:
-
-`.workflow/route3/lessons/LESSONS.jsonl`
-
-When `memanto` is on `PATH`, `record-lesson.sh` dual-writes:
+## Data flow
 
 ```text
-memanto remember … --type learning --confidence 0.9 \
-  --provenance observed --source route3-self-improve
+Codex / Claude / OpenClaw local logs
+                 │ bounded, read-only parsing
+                 ▼
+             telemetry.js ──► session-budget.js (status / snapshot)
+                 │
+                 ▼
+Native Mac app ── local HTTP server ── browser interface
+                        │ allowlisted argv, owned subprocess groups
+                        ├─ agent CLIs (their configured auth/models/policies)
+                        │    └─ Kimi: ACP over stdio (acp.js)
+                        │         session/request_permission ──► panel approval
+                        │         session/cancel ──► graceful job stop
+                        └─ OpenClaw CLI (gateway / browser / Telegram channel)
 ```
 
-Memanto failures are ignored. Skill rewrites are never driven automatically from lessons.
+Kimi jobs never run in prompt mode, which would bypass approvals. `acp.js`
+speaks newline-delimited JSON-RPC over stdio, defers `session/request_permission`
+server requests into job state (`awaiting_approval` plus permission cards in the
+panel), answers unknown server requests with a JSON-RPC error so an agent never
+hangs, and answers every open approval with `cancelled` when a job is stopped.
 
-## Explicit non-goals (v1)
+The native Mac app owns at most one server process: it attaches to a healthy
+server when one exists, starts `node control-center/server.js` only when the
+port is dead, and on quit stops only a server it started itself.
 
-- Temporal / durable workflow runtime
-- Control-panel UI
-- Auto-merge or unattended FINAL PR
-- Full upstream skill trees / all 362 alirezarezvani skills as agents (curated thin adapters only — see CLAUDE_SKILLS_INTEGRATION.md)
-- Heavy **program-designer** / c-level advisory packs (thin `route3-product` covers factory PRODUCT AC/scope)
-- Forcing all domain-team work through factory
-- Event-sourced TRACE that overrides STATE
-- Exhaustive call-graph artifacts as stage requirements
+Telemetry never returns raw prompts/tool payloads. Usage is cumulative spend or
+observed-message spend, labeled separately from latest-request context occupancy.
+Cache input semantics are normalized without double-counting. A bounded tail
+cannot prove complete lifetime totals. Unknown context windows stay unknown.
 
-See also: [FACTORY.md](FACTORY.md), [SELF-IMPROVE.md](SELF-IMPROVE.md), `skill/references/factory-contract.md`.
+## Process and HTTP boundaries
+
+The server listens only on loopback. Host checks prevent rebinding; Origin and a
+per-process token protect mutations. Requests have bounded bodies; commands use
+argv arrays and never a client-supplied shell string. Jobs have a concurrency cap,
+output cap, timeout and owned-process cancellation. Logs are redacted before
+return. Provider authentication stays with each provider; the control center does
+not change approval policies. Integration actions are limited to implemented
+lifecycle/status operations, not arbitrary gateway RPC or Telegram messaging.
+
+## Recovery
+
+The checkpoint CLI atomically writes a small private artifact containing the goal,
+constraints, authorization, changed paths, verification, blockers and next action.
+It never edits host transcript/session storage or claims to have compacted a host.
+After supported host compaction, the orchestrator resumes from this artifact.
+
+The skill installer stages changes, preserves local additions and retains the
+previous destination as a timestamped backup outside skill discovery, including
+symlink destinations.
+Global hook configuration and existing credentials are not replaced. Factory
+context graphs and lessons remain per-workspace data under `.workflow/route3/`.
+
+## Validation boundaries
+
+Automated tests use fixture transcripts, temporary files and fake executables.
+They verify accounting and safety invariants without spending model tokens or
+changing a live gateway. Native app compilation and a browser interaction smoke
+check validate delivery separately. Successful fixture tests do not prove a
+provider account has valid credentials or sufficient quota.

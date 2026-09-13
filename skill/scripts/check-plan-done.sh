@@ -228,20 +228,23 @@ sys.exit(0)
 case "$MODE" in
   trivial)
     has 'SLICE_EVAL:' || missing+=("SLICE_EVAL:")
+    has '^BITIRDIM:' || missing+=("BITIRDIM: (finish the live task)")
     ;;
   domain)
     has 'EVIDENCE:' || missing+=("EVIDENCE: (VALIDATED|HYPOTHESIS|UNKNOWN one-liner)")
     has 'CLARIFY_COVERAGE:|GRILL:.*(ALIGNED|SKIPPED)|status=ALIGNED|^PLAN_APPROVAL:' \
       || missing+=("CLARIFY_COVERAGE or GRILL ALIGNED / PLAN_APPROVAL")
+    has '^BITIRDIM:' || missing+=("BITIRDIM: (finish the live task)")
     ;;
   full)
     has 'SLICE_EVAL:' || missing+=("SLICE_EVAL:")
     has 'GRILL:.*ALIGNED|status=ALIGNED' || missing+=("GRILL: status=ALIGNED")
     has 'CLARIFY_COVERAGE:' || missing+=("CLARIFY_COVERAGE:")
     has_preflight || missing+=("PREFLIGHT: PASS (run check-preflight.sh)")
-    has 'ROUTE_DECISION:.*primary=(codex|kimi|native)' || missing+=("ROUTE_DECISION: primary=codex|kimi|native")
+    has 'ROUTE_DECISION:.*primary=(codex|kimi|zai|gemini|native)' || missing+=("ROUTE_DECISION: primary=codex|kimi|zai|gemini|native")
     has '^BUILDER_DISPATCH:' || missing+=("BUILDER_DISPATCH:")
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF:")
+    has '^BITIRDIM:' || missing+=("BITIRDIM: task=<one line> at=<ISO8601> (finish the live task; then tell the user Bitirdim.)")
     has 'PONYTAIL:' || warn+=("PONYTAIL:")
     has 'PRODUCT:' || warn+=("PRODUCT:")
     check_agent_map_solution_bar
@@ -253,6 +256,7 @@ case "$MODE" in
     has 'SLICE_EVAL:' || missing+=("SLICE_EVAL:")
     has '^BUILDER_DISPATCH:' || missing+=("BUILDER_DISPATCH:")
     has 'BUILD_PROOF:' || missing+=("BUILD_PROOF:")
+    has '^BITIRDIM:' || missing+=("BITIRDIM: task=<one line> at=<ISO8601>")
     has '^PLAN_APPROVAL: *(approved|continue|yes_to_all)\b' || missing+=("PLAN_APPROVAL human line")
     check_agent_map_solution_bar
     if [[ -f "$STATE" ]]; then

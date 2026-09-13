@@ -57,12 +57,14 @@ After `route-slice.sh` prints `ROUTE_DECISION`:
 |---|---|
 | `codex` | `codex exec --model gpt-5.6-sol -s workspace-write -c model_reasoning_effort=high --skip-git-repo-check` with the slice prompt |
 | `kimi` | `kimi -m kimi-code/k3 -p "<slice>" </dev/null` |
+| `zai` | Routed `BUILD_WITH` (lazyglm / hermes `--provider zai` / `zai-cli chat`) — must invoke when `zai=GREEN` |
+| `gemini` | `gemini -m gemini-3-flash-preview -y -p "<slice>"` when `gemini=GREEN`; Cursor Task `model=gemini-3-flash` if CLI dies mid-run |
 | `native` | One or more `route3-*` via Task/Agent — never main-thread product edits |
 
 Log in PLAN.md (required before done):
 
 ```text
-BUILDER_DISPATCH: primary=<codex|kimi|native> via=<codex-exec|kimi-cli|task|agent> agents=<names or -> at=<ISO>
+BUILDER_DISPATCH: primary=<codex|kimi|zai|gemini|native> via=<codex-exec|kimi-cli|zai-cli|gemini-cli|task|agent> agents=<names or -> at=<ISO>
 ```
 
 Examples:
@@ -114,6 +116,26 @@ scripts/check-plan-done.sh       # requires BUILDER_DISPATCH
 ```
 
 If assert fails → stop. Fix route/dispatch. Do not self-write to "unblock".
+
+## Mechanical enforcement (opt-in hooks)
+
+The rules above are self-enforced by default. To make them a wall, install
+`hooks/install-hooks.sh` (see `hooks/README.md`):
+
+- **PreToolUse `guard-boss-write.sh`** DENIES a main-thread Edit/Write to product
+  files (`src/`, `app/`, `prisma/`, …) while a `ROUTE_DECISION` is live.
+- **Stop `guard-done.sh`** blocks finishing until `assert-dispatch-evidence.sh` +
+  `check-plan-done.sh` pass, then stamps `DONE_OK`.
+
+Micro-exception (tiny exceptions #1) is now **mechanical**: to make a bounded
+(<20-line) main-thread edit, first log the reason —
+
+```bash
+printf 'BOSS_EXCEPTION: <reason> at <ISO8601>\n' > .workflow/route3/BOSS_EXCEPTION
+```
+
+The guard honours that file and lets the edit through (still no schema/auth/pay).
+Both hooks are no-ops outside a live Route3 run and loop-safe.
 
 
 ## Factory authority matrix

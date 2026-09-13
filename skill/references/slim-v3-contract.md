@@ -43,7 +43,7 @@ after scan → `batch-lite`.
 5. check-preflight.sh (exit 1 = stop)
 6. AGENT_MAP + DISPATCH_PROMPT (`dispatch-prompt-contract.md`) → route-slice.sh → assert-build-route.sh → Codex → Kimi → native Task/Agent
 7. check-ownership.sh before parallel writers
-8. BUILD (never boss-write) → log BUILDER_DISPATCH → test → reviewer → improver ≤2
+8. BUILD (never boss-write) → log BUILDER_DISPATCH → assert-dispatch-evidence.sh → test → reviewer → improver ≤2
 9. Boss BUILD_PROOF + SLICE_EVAL → assert-build-route.sh --require-dispatch → check-plan-done.sh
 10. Report ≤15 lines
 ```
@@ -69,9 +69,9 @@ after scan → `batch-lite`.
 
 | Slice | Required |
 |---|---|
-| Trivial | `SLICE_EVAL:` |
-| Full | `CLARIFY_COVERAGE` (D1–D11) + `GRILL ALIGNED` + `SOLUTION_BAR: saas` + `AGENT_MAP` + `PREFLIGHT: PASS` + `ROUTE_DECISION` + `DISPATCH_PROMPT`/`BUILDER_DISPATCH` + `BUILD_PROOF` + `SLICE_EVAL` |
-| Domain | `EVIDENCE:` + clarify/grill marker |
+| Trivial | `SLICE_EVAL:` + `BITIRDIM:` |
+| Full | `CLARIFY_COVERAGE` (D1–D11) + `GRILL ALIGNED` + `SOLUTION_BAR: saas` + `AGENT_MAP` + `PREFLIGHT: PASS` + `ROUTE_DECISION` + `DISPATCH_PROMPT`/`BUILDER_DISPATCH` + `BUILD_PROOF` + `SLICE_EVAL` + `BITIRDIM:` |
+| Domain | `EVIDENCE:` + clarify/grill marker + `BITIRDIM:` |
 
 ## Anti-patterns
 
@@ -83,6 +83,8 @@ after scan → `batch-lite`.
 - Asking "Sol yoxsa Kimi?"
 - Inventing ROUTE_DECISION without `route-slice.sh`
 - Missing `BUILDER_DISPATCH:` before claiming done
+- Stopping a live concrete task because a new task arrived (queue it; finish first)
+- Claiming done without `BITIRDIM:` in PLAN and the user line `Bitirdim.`
 - Parallel writers without OWNERSHIP check
 - MVP stubs / skipping a11y-validation-states
 - Missing DISPATCH_PROMPT / AGENT_MAP before Codex/Kimi/Task invoke

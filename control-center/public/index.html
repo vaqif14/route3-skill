@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="az">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f6f8">
+  <title>Route3 · İdarəetmə mərkəzi</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Məzmuna keç</a>
+  <aside class="sidebar" aria-label="Əsas naviqasiya">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">r3</span><div><strong>Route3</strong><span>İdarəetmə mərkəzi</span></div></div>
+    <p class="nav-label">İŞ MƏKANI</p>
+    <nav>
+      <button class="nav-button selected" data-view="overview" aria-current="page"><span aria-hidden="true">◫</span>İcmal</button>
+      <button class="nav-button" data-view="sessions"><span aria-hidden="true">◉</span>Sessiyalar <span class="nav-count" id="session-count">—</span></button>
+      <button class="nav-button" data-view="launch"><span aria-hidden="true">↗</span>Agent başlat</button>
+      <button class="nav-button" data-view="jobs"><span aria-hidden="true">≡</span>Tapşırıqlar <span class="nav-count" id="job-count">—</span></button>
+      <button class="nav-button" data-view="integrations"><span aria-hidden="true">⌘</span>İnteqrasiyalar</button>
+    </nav>
+    <div class="sidebar-bottom"><div class="connection"><span class="dot" id="connection-dot"></span><span id="connection-label">Qoşulur…</span></div><p>Bu Mac üzərində lokal idarəetmə</p><label class="theme-control" for="theme">Görünüş<select id="theme"><option value="system">Sistem</option><option value="light">Açıq</option><option value="dark">Tünd</option></select></label></div>
+  </aside>
+  <div class="workspace">
+    <header class="toolbar"><div class="breadcrumb">Route3 <span>/</span> <span id="breadcrumb">İcmal</span></div><div class="toolbar-actions"><span id="updated-at">Məlumat gözlənilir</span><button class="icon-button" id="refresh" aria-label="Məlumatları yenilə" title="Yenilə (⌘R)">↻</button></div></header>
+    <main id="main" tabindex="-1">
+      <div id="alert" class="alert" role="alert" hidden></div>
+      <section class="view" id="view-overview" aria-labelledby="overview-heading">
+        <div class="page-heading"><div><p class="eyebrow">SESSİYA MÜŞAHİDƏSİ</p><h1 id="overview-heading">İşin gedişi, aydın görünür.</h1><p>Agentlər, token istifadəsi və kontekst — bir yerdə.</p></div><button class="primary" data-go="launch">Agent başlat <span aria-hidden="true">↗</span></button></div>
+        <div class="metrics" id="metrics" aria-busy="true"><article class="metric"><span>Sessiyalar</span><strong>—</strong><small>Yüklənir…</small></article><article class="metric"><span>Cəmi token</span><strong>—</strong><small>Yüklənir…</small></article><article class="metric"><span>Keşdən giriş</span><strong>—</strong><small>Yüklənir…</small></article><article class="metric"><span>Kontekst diqqəti</span><strong>—</strong><small>Yüklənir…</small></article></div>
+        <div class="overview-grid"><article class="panel"><div class="panel-heading"><div><h2>Token bölgüsü</h2><p>Oxunan sessiyaların qeydə alınmış istifadəsi</p></div><span class="badge">Lokal telemetriya</span></div><div id="usage"><div class="empty">İstifadə məlumatları yüklənir…</div></div></article><article class="panel"><div class="panel-heading"><div><h2>Növbəti addım</h2><p>Kontekst üçün ölçüyə əsaslanan tövsiyələr</p></div></div><div id="recommendations"><div class="empty">Kontekst məlumatları yüklənir…</div></div></article></div>
+        <article class="panel"><div class="panel-heading"><div><h2>Son sessiyalar</h2><p>Son yenilənən sessiyaların kontekst vəziyyəti</p></div><button class="text-button" data-go="sessions">Hamısına bax →</button></div><div id="recent-sessions"></div></article>
+        <div id="warnings" class="warnings"></div>
+      </section>
+      <section class="view" id="view-sessions" aria-labelledby="sessions-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">KONTEKST VƏ SƏRFİYYAT</p><h1 id="sessions-heading">Sessiyalar</h1><p>Ümumi token sərfi ilə cari kontekst doluluğu ayrı ölçülərdir.</p></div></div>
+        <div class="filter-row"><label class="search"><span aria-hidden="true">⌕</span><input id="session-search" type="search" placeholder="Sessiya, model və ya layihə axtar" aria-label="Sessiya axtar"></label><label class="sr-only" for="provider-filter">Agentə görə süzgəc</label><select id="provider-filter"><option value="all">Bütün agentlər</option></select></div>
+        <div id="all-sessions" class="session-grid"><div class="empty">Sessiyalar yüklənir…</div></div>
+      </section>
+      <section class="view" id="view-launch" aria-labelledby="launch-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">İŞİ BAŞLAT</p><h1 id="launch-heading">Doğru agenti qoş.</h1><p>Bu Mac-də mövcud agent seçin və ona konkret tapşırıq verin.</p></div></div>
+        <div class="launch-grid"><form id="launch-form" class="panel form-panel"><fieldset><legend>1. Agent seçimi</legend><div id="agent-options" class="agent-options"><p class="muted">Agentlər yoxlanılır…</p></div></fieldset><label for="task-class">İşin növü</label><select id="task-class"><option value="code">Kod və yoxlama</option><option value="design">Dizayn və interfeys</option><option value="planning">Planlaşdırma</option><option value="discussion">Müzakirə və analiz</option></select><p class="field-help">Avtomatik seçim işin növünü və mövcud agentləri nəzərə alır.</p><label for="cwd">2. Layihə qovluğu</label><input id="cwd" name="cwd" type="text" placeholder="/Users/…/Projects/layihə" required autocomplete="off" spellcheck="false"><p class="field-help">Agent bu qovluqda işləyəcək. Tam lokal yol yazın.</p><label for="prompt">3. Tapşırıq</label><textarea id="prompt" name="prompt" rows="8" placeholder="Məqsəd, sərhədlər və gözlənilən nəticə…" required minlength="3" maxlength="50000"></textarea><div class="form-footer"><span class="muted" id="prompt-count">0 simvol</span><button class="primary" id="launch-submit" type="submit" disabled>Agenti başlat ↗</button></div><p id="launch-status" class="form-status" role="status"></p></form><aside class="launch-help"><div class="help-icon" aria-hidden="true">↗</div><h2>Aydın tapşırıq.<br>Daha az təkrar.</h2><p>Məqsədi, dəyişə biləcəyi faylları və nəticəni necə yoxlayacağını qeyd edin.</p><div class="help-divider"></div><h3>Kontekst xərclərini azaldın</h3><p>Tam tarixçə əvəzinə lazımi faktları verin. Böyük çıxışları fayla yazdırın. Agentə ayrıca, məhdud məsuliyyət ayırın.</p><p class="field-help">Başladılmış işin çıxışını və vəziyyətini Tapşırıqlar bölməsində izləyə bilərsiniz.</p></aside></div>
+      </section>
+      <section class="view" id="view-jobs" aria-labelledby="jobs-heading" hidden><div class="page-heading"><div><p class="eyebrow">İCRA VƏ ÇIXIŞ</p><h1 id="jobs-heading">Tapşırıqlar</h1><p>Bu idarəetmə mərkəzindən başladılmış agentlərin vəziyyəti.</p></div><button class="primary" data-go="launch">Yeni tapşırıq ↗</button></div><div id="jobs-list"><div class="empty">Tapşırıqlar yüklənir…</div></div></section>
+      <section class="view" id="view-integrations" aria-labelledby="integrations-heading" hidden><div class="page-heading"><div><p class="eyebrow">LOKAL XİDMƏTLƏR</p><h1 id="integrations-heading">İnteqrasiyalar</h1><p>OpenClaw, brauzer və Telegram bağlantısını idarə edin.</p></div></div><div class="integration-grid" id="integrations-list"><div class="empty">Xidmətlər yoxlanılır…</div></div><p class="footnote">İcra edilə bilən əməliyyatlar bu Mac-dəki quraşdırma və xidmət imkanlarına əsasən göstərilir.</p></section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

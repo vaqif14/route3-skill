@@ -1,14 +1,19 @@
 {
   "name": "route3-skill",
-  "version": "1.4.3",
-  "description": "Route3 multi-expert orchestrator + opt-in artifact factory (clarify D1\u2013D11, AGENT_MAP dispatch prompts, SaaS/no-MVP, self-improve lessons).",
+  "version": "2.0.0",
+  "description": "Route3: measured session supervision, efficient expert dispatch, and a native Mac control center for agents, OpenClaw, browser and Telegram.",
   "main": "bin/route3-skill.js",
   "bin": {
     "route3-skill": "bin/route3-skill.js"
   },
   "scripts": {
-    "postinstall": "node \"$(dirname \"$npm_package_json\")/bin/route3-skill.js\" install --quiet || node bin/route3-skill.js install --quiet || true",
-    "test": "bash skill/scripts/test-factory-smoke.sh"
+    "postinstall": "node bin/route3-skill.js install --quiet",
+    "start": "node control-center/server.js",
+    "test": "node --test test/*.test.js control-center/test/*.test.js",
+    "test:legacy": "bash skill/scripts/test-factory-smoke.sh",
+    "test:context": "bash skill/context/test-context.sh",
+    "test:hooks": "bash skill/hooks/test-hooks.sh",
+    "mac": "bash control-center/mac/build.sh"
   },
   "files": [
     "bin/",
@@ -17,7 +22,8 @@
     "docs/",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "control-center/"
   ],
   "keywords": [
     "claude-code",

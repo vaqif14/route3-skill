@@ -110,6 +110,19 @@ else:
     echo "### $d"
     head -n 30 "$d"
   done
+  echo
+  echo "## CODE CONTEXT (structural graph — graft-inspired, \$0)"
+  # Give the dispatched writer the exact relevant files instead of blind grep.
+  # Best-effort: never fail the pack if the engine is unavailable.
+  CTX="$(cd "$(dirname "$0")/../context" 2>/dev/null && pwd)/ctx.sh"
+  if [[ -x "$CTX" ]]; then
+    [[ -d ".workflow/route3/context" ]] || bash "$CTX" build >/dev/null 2>&1 || true
+    QUERY="$(grep -iE '^\s*goal:' "$BRIEF" | head -1 | cut -d: -f2- | tr -d '\n')"
+    [[ -n "$QUERY" ]] || QUERY="$(head -c 200 "$BRIEF" | tr '\n' ' ')"
+    bash "$CTX" pack "$QUERY" --k 8 2>/dev/null || echo "(context engine unavailable)"
+  else
+    echo "(context engine not installed)"
+  fi
 } > "$OUT.tmp"
 mv "$OUT.tmp" "$OUT"
 

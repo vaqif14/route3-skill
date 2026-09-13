@@ -1,150 +1,89 @@
 #!/usr/bin/env node
-"use strict";
-
-const fs = require("fs");
-const path = require("path");
-const os = require("os");
-
-const PKG_ROOT = path.resolve(__dirname, "..");
-const SKILL_SRC = path.join(PKG_ROOT, "skill");
-const AGENTS_SRC = path.join(PKG_ROOT, "agents");
-const SKILL_NAME = "route3";
-
-function parseArgs(argv) {
-  const args = { cmd: "help", quiet: false, dryRun: false, targets: null };
-  const rest = argv.slice(2);
-  if (rest.length === 0) {
-    args.cmd = "install";
-    return args;
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const os=require('node:os');
+const {spawn}=require('node:child_process');
+const ROOT=path.resolve(__dirname,'..');
+const TARGETS=['claude','cursor','codex','agents','openclaw'];
+function parseArgs(argv){
+ const result={cmd:argv[0]||'help',quiet:false,dryRun:false,targets:[]};
+ for(const arg of argv.slice(1)){
+  if(arg==='--quiet'||arg==='-q')result.quiet=true;
+  else if(arg==='--dry-run')result.dryRun=true;
+  else if(arg==='--all')result.targets=[...TARGETS];
+  else if(TARGETS.includes(arg.slice(2))&&arg.startsWith('--'))result.targets.push(arg.slice(2));
+  else throw new Error(`Unknown option: ${arg}`);
+ }
+ if(!result.targets.length)result.targets=[...TARGETS];
+ result.targets=[...new Set(result.targets)];return result;
+}
+function pathsFor(home,target){
+ const base=path.join(home,`.${target}`);
+ return {skill:path.join(base,'skills/route3'),...(['claude','cursor'].includes(target)?{agents:path.join(base,'agents/route3'),command:path.join(base,'commands/route3.md')}:{})};
+}
+function mergeInstall(src,dest,options){
+ if(!fs.existsSync(src))throw new Error(`Missing package resource: ${src}`);
+ if(!options.quiet)console.log(`${options.dryRun?'Would install':'Installing'} ${dest}`);
+ if(options.dryRun)return;
+ const stamp=`${Date.now()}-${process.pid}`;
+ const stage=`${dest}.stage-${stamp}`;
+ const backup=options.backupRoot ? path.join(options.backupRoot,`${path.basename(dest)}-${stamp}`) : `${dest}.backup-${stamp}`;
+ fs.mkdirSync(path.dirname(dest),{recursive:true});
+ // Keep local additions and private configuration. Only packaged paths update.
+ // Backups retain the exact old installation, including any symlink itself.
+ const exists=fs.existsSync(dest)||(()=>{try{return !!fs.lstatSync(dest);}catch{return false;}})();
+ try{
+  if(exists)fs.cpSync(dest,stage,{recursive:true,dereference:true});
+  fs.cpSync(src,stage,{recursive:true,force:true,dereference:true});
+  if(exists){fs.mkdirSync(path.dirname(backup),{recursive:true,mode:0o700});fs.renameSync(dest,backup);}
+  try{fs.renameSync(stage,dest);}catch(error){if(exists)fs.renameSync(backup,dest);throw error;}
+  if(exists&&!options.quiet)console.log(`Backup: ${backup}`);
+ }catch(error){fs.rmSync(stage,{recursive:true,force:true});throw error;}
+}
+function install(options,home=os.homedir()){
+ for(const target of options.targets){
+  const p=pathsFor(home,target);
+  const targetOptions={...options,backupRoot:path.join(home,'.local/share/route3/backups',target)};
+  mergeInstall(path.join(ROOT,'skill'),p.skill,{...targetOptions,backupRoot:path.join(targetOptions.backupRoot,'skills')});
+  if(p.agents)mergeInstall(path.join(ROOT,'agents'),p.agents,{...targetOptions,backupRoot:path.join(targetOptions.backupRoot,'agents')});
+  if(p.command)mergeInstall(path.join(ROOT,'skill/commands/route3.md'),p.command,{...targetOptions,backupRoot:path.join(targetOptions.backupRoot,'commands')});
+ }
+ mergeInstall(path.join(ROOT,'control-center'),path.join(home,'.local/share/route3/control-center'),{...options,backupRoot:path.join(home,'.local/share/route3/backups/runtime')});
+ if(!options.quiet)console.log('Route3 installed. Run route3-skill center or route3-skill mac.');
+}
+function uninstall(options,home=os.homedir()){
+ for(const target of options.targets){
+  for(const [kind,dest] of Object.entries(pathsFor(home,target))){
+   if(!fs.existsSync(dest))continue;
+   const backup=path.join(home,'.local/share/route3/backups',target,`${kind}-uninstalled-${Date.now()}-${process.pid}`);
+   if(!options.quiet)console.log(`${options.dryRun?'Would move':'Moving'} ${dest} to ${backup}`);
+   if(!options.dryRun){fs.mkdirSync(path.dirname(backup),{recursive:true,mode:0o700});fs.renameSync(dest,backup);}
   }
-  args.cmd = rest[0];
-  for (let i = 1; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === "--quiet" || a === "-q") args.quiet = true;
-    else if (a === "--dry-run") args.dryRun = true;
-    else if (a === "--claude") args.targets = (args.targets || []).concat("claude");
-    else if (a === "--cursor") args.targets = (args.targets || []).concat("cursor");
-    else if (a === "--all") args.targets = ["claude", "cursor"];
-  }
-  return args;
+ }
 }
+function run(command,args){const child=spawn(command,args,{stdio:'inherit',shell:false});child.on('error',e=>{console.error(e.message);process.exitCode=1;});child.on('exit',code=>{process.exitCode=code===null?1:code;});}
+function help(){console.log(`Route3 — measured agent orchestration and Mac control center
 
-function log(quiet, msg) {
-  if (!quiet) console.log(msg);
+  route3-skill install [--claude|--cursor|--codex|--agents|--openclaw|--all] [--dry-run]
+  route3-skill uninstall [--all]      Move installed skills into recovery backups
+  route3-skill center                 Start local control center
+  route3-skill mac                    Build/install the native Mac app
+  route3-skill sessions [--cwd PATH] [--session ID]
+  route3-skill help
+
+Existing installs are backed up and local additions preserved. Model credentials
+remain with their own CLIs. No paid model probes run during installation.`);}
+function main(argv=process.argv.slice(2)){
+ const command=argv[0]||'help';
+ if(command==='center')return run(process.execPath,[path.join(ROOT,'control-center/server.js'),...argv.slice(1)]);
+ if(command==='sessions')return run(process.execPath,[path.join(ROOT,'skill/scripts/session-budget.js'),'status',...argv.slice(1)]);
+ if(command==='mac')return run('/bin/bash',[path.join(ROOT,'control-center/mac/build.sh'),...argv.slice(1)]);
+ const args=parseArgs(argv);
+ if(['install','i'].includes(args.cmd))return install(args);
+ if(['uninstall','remove','rm'].includes(args.cmd))return uninstall(args);
+ if(['help','--help','-h'].includes(args.cmd))return help();
+ throw new Error(`Unknown command: ${args.cmd}. Use route3-skill help.`);
 }
-
-function rimraf(target, dryRun) {
-  if (!fs.existsSync(target)) return;
-  if (dryRun) return;
-  fs.rmSync(target, { recursive: true, force: true });
-}
-
-function copyRecursive(src, dest, dryRun) {
-  if (dryRun) return;
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.cpSync(src, dest, { recursive: true, force: true });
-}
-
-function chmodScripts(skillDest, dryRun) {
-  const scriptsDir = path.join(skillDest, "scripts");
-  if (!fs.existsSync(scriptsDir)) return;
-  for (const name of fs.readdirSync(scriptsDir)) {
-    if (!name.endsWith(".sh")) continue;
-    const p = path.join(scriptsDir, name);
-    if (dryRun) continue;
-    try { fs.chmodSync(p, 0o755); } catch (_) {}
-  }
-}
-
-function targetsFor(args) {
-  if (args.targets && args.targets.length) return args.targets;
-  return ["claude", "cursor"];
-}
-
-function skillPaths(home, target) {
-  if (target === "claude") {
-    return {
-      skill: path.join(home, ".claude", "skills", SKILL_NAME),
-      agents: path.join(home, ".claude", "agents", SKILL_NAME),
-    };
-  }
-  if (target === "cursor") {
-    return {
-      skill: path.join(home, ".cursor", "skills", SKILL_NAME),
-      agents: path.join(home, ".cursor", "agents", SKILL_NAME),
-    };
-  }
-  throw new Error("unknown target: " + target);
-}
-
-function install(args) {
-  if (!fs.existsSync(path.join(SKILL_SRC, "SKILL.md"))) {
-    console.error("route3-skill: skill/SKILL.md missing in package");
-    process.exit(1);
-  }
-  const home = os.homedir();
-  for (const t of targetsFor(args)) {
-    const paths = skillPaths(home, t);
-    log(args.quiet, "Installing Route3 → " + paths.skill);
-    if (!args.dryRun) {
-      rimraf(paths.skill, false);
-      rimraf(paths.agents, false);
-      copyRecursive(SKILL_SRC, paths.skill, false);
-      if (fs.existsSync(AGENTS_SRC)) copyRecursive(AGENTS_SRC, paths.agents, false);
-      chmodScripts(paths.skill, false);
-    } else {
-      log(args.quiet, "[dry-run] would copy skill → " + paths.skill);
-      log(args.quiet, "[dry-run] would copy agents → " + paths.agents);
-    }
-  }
-  log(args.quiet, "Route3 skill installed. In chat: /route3 <task>");
-}
-
-function uninstall(args) {
-  const home = os.homedir();
-  for (const t of targetsFor(args)) {
-    const paths = skillPaths(home, t);
-    log(args.quiet, "Removing Route3 ← " + paths.skill);
-    rimraf(paths.skill, args.dryRun);
-    rimraf(paths.agents, args.dryRun);
-  }
-  log(args.quiet, "Route3 skill uninstalled.");
-}
-
-function help() {
-  console.log(`route3-skill — install the Route3 orchestrator skill
-
-Usage:
-  npx route3-skill install [--claude] [--cursor] [--all] [--dry-run] [--quiet]
-  npx route3-skill uninstall [--claude] [--cursor] [--all] [--quiet]
-  npm install -g route3-skill
-
-Installs to:
-  ~/.claude/skills/route3 + ~/.claude/agents/route3
-  ~/.cursor/skills/route3 + ~/.cursor/agents/route3
-
-Then invoke: /route3 <your task>
-`);
-}
-
-const args = parseArgs(process.argv);
-switch (args.cmd) {
-  case "install":
-  case "i":
-    install(args);
-    break;
-  case "uninstall":
-  case "remove":
-  case "rm":
-    uninstall(args);
-    break;
-  case "help":
-  case "--help":
-  case "-h":
-    help();
-    break;
-  default:
-    console.error("Unknown command:", args.cmd);
-    help();
-    process.exit(1);
-}
+module.exports={parseArgs,pathsFor,mergeInstall,install,uninstall,main};
+if(require.main===module){try{main();}catch(e){console.error(`route3-skill: ${e.message}`);process.exitCode=1;}}

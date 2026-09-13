@@ -100,6 +100,13 @@ Copy verbatim structure. Fill every section. Paste as the **entire** Codex/Kimi/
 
 ## STOP / RETURN
 - Return `BUILD_PROOF:` block (commands + results)
+- **Append your WRITER_ACK before returning** — part of returning, not optional:
+
+```bash
+printf 'WRITER_ACK: agent=<your-agent-name> token=<DISPATCH_TOKEN> at=%s\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .workflow/route3/WRITER_ACK.md
+```
+
 - Escalate **blocked only** (missing secrets, AC impossible, ownership conflict)
 - Do not shrink AC; do not invent out-of-scope work
 
@@ -126,11 +133,15 @@ If blocked or VERIFY FAIL → boss may **re-dispatch** a new prompt; not live-ed
 
 ## How to paste (Codex / Kimi / native)
 
-| Primary | How |
-|---|---|
-| **Codex** | `codex exec …` with the full DISPATCH_PROMPT as the task body (stdin or arg). Log `BUILDER_DISPATCH: primary=codex via=codex-exec agents=<map summary>`. |
-| **Kimi** | `kimi -m kimi-code/k3 -p "<DISPATCH_PROMPT>" </dev/null` (or file redirect). Same `BUILDER_DISPATCH` with `via=kimi-cli`. |
-| **Native** | Cursor `Task` / Claude Code `Agent` with `subagent_type` matching EXISTS/USE_EXISTING rows. Paste full DISPATCH_PROMPT as the task prompt. `via=task\|agent` + `agents=route3-…`. |
+All three receive the **same** DISPATCH_PROMPT body, so the WRITER_ACK
+requirement in STOP / RETURN reaches every writer from one source. Substitute
+the real `DISPATCH_TOKEN` (from `route-slice.sh`) before pasting.
+
+| Primary | How | Ack agent name |
+|---|---|---|
+| **Codex** | `codex exec …` with the full DISPATCH_PROMPT as the task body (positional prompt or stdin). Log `BUILDER_DISPATCH: primary=codex via=codex-exec agents=<map summary>`. | `codex` |
+| **Kimi** | `kimi -m kimi-code/k3 -p "<DISPATCH_PROMPT>" </dev/null` (or file redirect). Same `BUILDER_DISPATCH` with `via=kimi-cli`. | `kimi` |
+| **Native** | Cursor `Task` / Claude Code `Agent` with `subagent_type` matching EXISTS/USE_EXISTING rows. Paste full DISPATCH_PROMPT as the task prompt. `via=task\|agent` + `agents=route3-…`. | `route3-…` |
 
 Always log after invoke:
 
@@ -142,6 +153,36 @@ Example:
 
 ```text
 BUILDER_DISPATCH: primary=native via=task agents=route3-api-expert|EXISTS,route3-ui-expert|USE_EXISTING at=2026-08-08T00:00:00Z
+```
+
+---
+
+## WRITER_ACK — dispatch evidence (mandatory)
+
+`BUILDER_DISPATCH:` is **self-attestation**: the boss types the same line
+whether or not a writer ever ran. The ack closes that hole.
+
+| Step | Who | Artifact |
+|---|---|---|
+| 1. Route | `route-slice.sh` stamps a random token | `.workflow/route3/DISPATCH_TOKEN` |
+| 2. Dispatch | Boss pastes the token into DISPATCH_PROMPT | prompt body |
+| 3. Return | **Writer** appends its ack | `.workflow/route3/WRITER_ACK.md` |
+| 4. Gate | `assert-dispatch-evidence.sh` matches token + agent | exit 0/1 |
+
+```text
+WRITER_ACK: agent=route3-api-expert token=r3-20260808T012600Z-a1b2c3d4e5f60718 at=2026-08-08T01:26:00Z
+```
+
+Rejected: missing ack · token mismatch (stale route) · `agent=boss|self|main|
+orchestrator|route3`. Same evidence-binding idea as `record-lesson.sh`
+`quality=bound` vs `unbound` (`self-improve.md`) — evidence the claimant could
+not have produced alone.
+
+Run **immediately after BUILD**, not only at done-time:
+
+```bash
+scripts/assert-build-route.sh PLAN.md --require-dispatch   # calls the evidence gate
+scripts/assert-dispatch-evidence.sh --plan PLAN.md         # or standalone
 ```
 
 Before done: `assert-build-route.sh --require-dispatch` (requires `AGENT_MAP:` in PLAN) + `check-plan-done.sh`.

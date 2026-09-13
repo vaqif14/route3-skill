@@ -5,6 +5,22 @@ Thin expert definitions installed to `~/.claude/agents/route3/` and `~/.cursor/a
 Every agent: clarity gate → work → `STATUS: COMPLETED | NEEDS_CLARIFICATION | NEEDS_APPROVAL | BLOCKED | FAILED`.  
 Boss never self-writes product code — see `skill/references/boss-discipline.md`.
 
+## Dispatch ack (mandatory for every dispatched agent)
+
+The DISPATCH_PROMPT carries a `DISPATCH_TOKEN` stamped by `route-slice.sh`.
+Before returning, append your ack — this is what proves a writer actually ran,
+since a `BUILDER_DISPATCH:` line is boss self-attestation:
+
+```bash
+printf 'WRITER_ACK: agent=%s token=%s at=%s\n' \
+  "route3-<your-name>" "<DISPATCH_TOKEN>" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  >> .workflow/route3/WRITER_ACK.md
+```
+
+Verified by `skill/scripts/assert-dispatch-evidence.sh`; boss-authored agent
+names (`boss`, `self`, `main`, `orchestrator`, `route3`) are rejected.
+Contract: `skill/references/dispatch-prompt-contract.md`.
+
 ## Core (v1.0–1.3)
 
 | Agent | Role |

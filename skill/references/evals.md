@@ -28,6 +28,28 @@ Boss self-check before first BUILD of a session (or after skill edit):
 
 Score = correct / total. Target ≥ **0.9**.
 
+## Route + dispatch-evidence eval
+
+File: `evals/route-evals.json` — executable assertions, no network:
+
+```bash
+~/.claude/skills/route3/scripts/eval-route.sh
+```
+
+| id | Asserts |
+|---|---|
+| `probe-green-healthy-cli` | A CLI answering `OK` probes `sol=GREEN` |
+| `probe-green-despite-stderr-noise` | Unrelated stderr `ERROR` lines do not fake a dead backend |
+| `probe-blocked-on-quota` | Real quota death → `sol=BLOCKED` |
+| `probe-kimi-blocked-on-quota` | Kimi keeps `-p/--prompt`; quota death → `kimi=BLOCKED` |
+| `route-primary-codex-when-sol-green` | `sol=GREEN` → `primary=codex` + `DISPATCH_TOKEN` stamped |
+| `dispatch-without-writer-ack-fails` | `BUILDER_DISPATCH` alone fails `--require-dispatch` |
+| `dispatch-with-stale-token-fails` | Ack from an earlier route does not count |
+| `dispatch-boss-authored-ack-fails` | `agent=boss` ack is not evidence |
+| `dispatch-with-writer-ack-passes` | Non-boss ack bound to the token passes |
+
+Runs inside `scripts/test-factory-smoke.sh` (step 12) and `npm test`.
+
 ## Slice quality eval
 
 ```text

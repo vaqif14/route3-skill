@@ -44,8 +44,9 @@ if grep -Eq 'status=SKIPPED_TRIVIAL' "$PLAN"; then
 fi
 
 fail=()
-primary=$(grep -Eo 'ROUTE_DECISION:.*primary=(codex|kimi|native)' "$PLAN" | tail -1 \
-  | grep -Eo 'primary=(codex|kimi|native)' | cut -d= -f2 || true)
+PRIMARIES='codex|kimi|zai|gemini|native'
+primary=$(grep -Eo "ROUTE_DECISION:.*primary=($PRIMARIES)" "$PLAN" | tail -1 \
+  | grep -Eo "primary=($PRIMARIES)" | cut -d= -f2 || true)
 if [[ -z "$primary" ]]; then
   fail+=("no ROUTE_DECISION primary in PLAN — run route-slice.sh and paste output")
 fi
@@ -53,7 +54,7 @@ fi
 if [[ ! -f "$LOG" ]]; then
   fail+=("missing $LOG — run route-slice.sh (do not invent ROUTE_DECISION)")
 else
-  logp=$(grep -Eo 'primary=(codex|kimi|native)' "$LOG" | tail -1 | cut -d= -f2 || true)
+  logp=$(grep -Eo "primary=($PRIMARIES)" "$LOG" | tail -1 | cut -d= -f2 || true)
   if [[ -z "$logp" ]]; then
     fail+=("$LOG has no primary=")
   elif [[ -n "$primary" && "$logp" != "$primary" ]]; then
@@ -66,7 +67,7 @@ if grep -Eiq 'BOSS_SELF_WRITE:\s*(yes|true)|BUILDER_DISPATCH:.*\bboss-self\b|BUI
 fi
 
 if grep -Eiq 'continue yourself|boss will (code|implement|fix)|I (will|ll) (just )?(quickly )?(fix|implement)' "$PLAN"; then
-  fail+=("PLAN contains boss-as-writer wording — dispatch Codex/Kimi/Task instead")
+      fail+=("PLAN contains boss-as-writer wording — dispatch Codex/Kimi/z.ai/Gemini/Task instead")
 fi
 
 dispatch_line=$(grep -E '^BUILDER_DISPATCH:' "$PLAN" | tail -1 || true)
@@ -74,12 +75,12 @@ if [[ "$REQUIRE_DISPATCH" -eq 1 || -n "$dispatch_line" ]]; then
   if [[ -z "$dispatch_line" ]]; then
     fail+=("missing BUILDER_DISPATCH: line — boss must log real dispatch (boss-discipline.md)")
   else
-    echo "$dispatch_line" | grep -Eq 'primary=(codex|kimi|native)' \
-      || fail+=("BUILDER_DISPATCH must include primary=codex|kimi|native")
-    echo "$dispatch_line" | grep -Eq 'via=(codex-exec|kimi-cli|task|agent)' \
-      || fail+=("BUILDER_DISPATCH via= must be codex-exec|kimi-cli|task|agent (not boss)")
+    echo "$dispatch_line" | grep -Eq "primary=($PRIMARIES)" \
+      || fail+=("BUILDER_DISPATCH must include primary=codex|kimi|zai|gemini|native")
+    echo "$dispatch_line" | grep -Eq 'via=(codex-exec|kimi-cli|zai-cli|gemini-cli|task|agent)' \
+      || fail+=("BUILDER_DISPATCH via= must be codex-exec|kimi-cli|zai-cli|gemini-cli|task|agent (not boss)")
     if [[ -n "$primary" ]]; then
-      dprimary=$(echo "$dispatch_line" | grep -Eo 'primary=(codex|kimi|native)' | head -1 | cut -d= -f2 || true)
+      dprimary=$(echo "$dispatch_line" | grep -Eo "primary=($PRIMARIES)" | head -1 | cut -d= -f2 || true)
       if [[ -n "$dprimary" && "$dprimary" != "$primary" ]]; then
         fail+=("BUILDER_DISPATCH primary=$dprimary != ROUTE_DECISION primary=$primary")
       fi
@@ -101,6 +102,14 @@ if [[ "$REQUIRE_DISPATCH" -eq 1 && -n "$primary" && "$primary" != "native" ]]; t
       echo "$dispatch_line" | grep -Eq 'via=kimi-cli' \
         || fail+=("primary=kimi requires BUILDER_DISPATCH via=kimi-cli")
       ;;
+    zai)
+      echo "$dispatch_line" | grep -Eq 'via=zai-cli' \
+        || fail+=("primary=zai requires BUILDER_DISPATCH via=zai-cli")
+      ;;
+    gemini)
+      echo "$dispatch_line" | grep -Eq 'via=(gemini-cli|task)' \
+        || fail+=("primary=gemini requires BUILDER_DISPATCH via=gemini-cli or via=task")
+      ;;
   esac
 fi
 
@@ -108,6 +117,27 @@ fi
 if [[ "$REQUIRE_DISPATCH" -eq 1 ]]; then
   if ! grep -Eq '^AGENT_MAP:|[[:space:]]AGENT_MAP:' "$PLAN"; then
     fail+=("missing AGENT_MAP: in PLAN — declare EXISTS|MISSING_TYPE|USE_EXISTING before invoke (dispatch-prompt-contract.md)")
+  fi
+
+  # Writer-produced evidence: a BUILDER_DISPATCH line alone is self-attestation.
+  # Fail closed if the evidence gate is missing — never silently skip.
+  EV="$ROOT/scripts/assert-dispatch-evidence.sh"
+  if [[ ! -x "$EV" ]]; then
+    fail+=("missing executable assert-dispatch-evidence.sh — cannot verify WRITER_ACK")
+  else
+    EV_ARGS=(--plan "$PLAN")
+    [[ -n "$RUN_ID" ]] && EV_ARGS+=(--run "$RUN_ID")
+    set +e
+    ev_out=$("$EV" "${EV_ARGS[@]}" 2>&1)
+    ev_rc=$?
+    set -e
+    if [[ "$ev_rc" -ne 0 ]]; then
+      while IFS= read -r l; do
+        [[ -n "$l" ]] && fail+=("$l")
+      done <<< "$ev_out"
+    else
+      echo "$ev_out"
+    fi
   fi
 fi
 
