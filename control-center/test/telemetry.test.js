@@ -169,3 +169,23 @@ test('Claude sibling agents and their parent remain separate sessions even with 
   assert.equal(result.summary.totalTokens, 600);
   assert.deepEqual(result.sessions.map(s => s.id).sort(), ['claude-test', 'claude-test:agent:one', 'claude-test:agent:two']);
 });
+
+
+test('explicit session/cwd lookup selects before the recent-session limit and resolves symlinks', async t => {
+  const {home,file}=await fixture(t,codexPath,[{type:'session_meta',payload:{id:'older',cwd:'/not-used'}},tokenEvent(counts(10,1),counts(10,1))]);
+  const project=path.join(home,'project'),alias=path.join(home,'alias');
+  await fs.mkdir(project);await fs.symlink(project,alias);
+  await fs.writeFile(file,JSON.stringify({type:'session_meta',payload:{id:'older',cwd:alias}})+'\n'+JSON.stringify(tokenEvent(counts(10,1),counts(10,1)))+'\n');
+  for(let i=0;i<3;i++){const newer=path.join(path.dirname(file),`newer-${i}.jsonl`);await fs.writeFile(newer,JSON.stringify({type:'session_meta',payload:{id:`newer-${i}`,cwd:'/another'}})+'\n');await fs.utimes(newer,new Date(),new Date(Date.now()+1000));}
+  assert.equal((await collectTelemetry({home,limit:1})).sessions[0].id.startsWith('newer-'),true);
+  assert.deepEqual((await collectTelemetry({home,limit:1,sessionId:'older'})).sessions.map(s=>s.id),['older']);
+  assert.deepEqual((await collectTelemetry({home,limit:1,cwd:project})).sessions.map(s=>s.id),['older']);
+  assert.equal((await collectTelemetry({home,cwd:'/missing-workspace'})).sessions.length,0);
+  assert.equal((await collectTelemetry({home,sessionId:'unknown'})).sessions.length,0);
+});
+
+test('missing cache counters do not imply complete cache/input breakdown',async t=>{
+ const {home}=await fixture(t,codexPath,[tokenEvent({input_tokens:100,output_tokens:2,total_tokens:102},null)]);
+ const result=await collectTelemetry({home});
+ assert.equal(result.summary.inputTokens,100);assert.equal(result.summary.cachedInputTokens,null);assert.equal(result.summary.completeBreakdown,false);
+});

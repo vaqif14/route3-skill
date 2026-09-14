@@ -1,6 +1,6 @@
 {
   "name": "route3-skill",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Route3: measured session supervision, efficient expert dispatch, and a native Mac control center for agents, OpenClaw, browser and Telegram.",
   "main": "bin/route3-skill.js",
   "bin": {
@@ -23,7 +23,13 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
-    "control-center/"
+    "control-center/*.js",
+    "control-center/public/",
+    "control-center/mac/*.swift",
+    "control-center/mac/*.sh",
+    "control-center/mac/README.md",
+    "control-center/test/",
+    "test/"
   ],
   "keywords": [
     "claude-code",

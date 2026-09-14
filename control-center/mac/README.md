@@ -23,7 +23,7 @@ On launch the app polls `http://127.0.0.1:43173/api/health`:
   stops it — not on reload, not on quit.
 - If nothing is listening, the app starts `node control-center/server.js`
   itself. Only this owned server is stopped when the app quits (via the
-  server's own SIGINT handling, which also stops jobs it started).
+  server's own SIGTERM handling, which also stops jobs it started).
 
 The status bar always states which case is active. `Restart Local Server`
 restarts the owned server; with an external server it starts nothing and the
@@ -40,10 +40,11 @@ with the new folder; an externally started server keeps its own configuration.
 
 ## Node discovery
 
-`kimi`-style CLIs and the server itself run on plain Node. The app looks for
-`node` in this order: the inherited `PATH`, `/opt/homebrew/bin`,
-`/usr/local/bin`, then the newest `~/.nvm/versions/node/*/bin/node`. Missing
-Node is an explicit error state in the status bar, never a silent failure.
+The app augments Finder’s limited PATH with common user CLI directories,
+Homebrew and NVM installations, sorting NVM versions numerically. The selected
+Node directory is first in the child process PATH. Missing Node is an explicit
+error state. A responding port is reused only when its JSON health response
+identifies Route3; unrelated services are never attached or stopped.
 
 ## Server script resolution
 
@@ -52,3 +53,7 @@ in `Info.plist`, `~/.local/share/route3/control-center/server.js` (created by
 `route3-skill install`), then a repository checkout next to the bundle. If the
 repository moves, reinstall or rebuild — the panel will say so rather than
 guess.
+
+Builds run native self-checks, validate the plist and sign the bundle before
+replacing the installed app. The previous app is retained under the output
+directory’s `.route3-backups/` folder. A compile failure leaves it intact.

@@ -1,73 +1,74 @@
 'use strict';
 
-// Minimal Agent Client Protocol (ACP) client: newline-delimited JSON-RPC 2.0
-// over stdio. Only the operations the control center needs are implemented.
-// Unknown server requests get a JSON-RPC error so an agent never blocks on an
-// unanswered capability, and every surface text is redacted before display.
-
+// One supervised ACP turn per owned process. No prompt-mode auto approvals.
 const { spawn } = require('node:child_process');
 const { redact } = require('./security');
-
-const PROTOCOL_VERSION = 1;
 const MAX_LINE_BYTES = 262144;
 const text = (value, limit = 500) => typeof value === 'string' && value.trim() ? redact(value).slice(0, limit) : null;
 
 class AcpAgent {
-  constructor({ command, args = [], cwd, env = process.env, spawnFn = spawn, onEvent = () => {} }) {
+  constructor({ command, args = [], cwd, env = process.env, spawnFn = spawn, onEvent = () => {}, maxOutputBytes = 2 * 1024 * 1024 }) {
     if (!command) throw new Error('A command is required.');
-    this.onEvent = onEvent;
-    this.cwd = cwd;
-    this.nextId = 1;
-    this.pending = new Map();
-    this.permissions = new Map();
-    this.sessionId = null;
-    this.buffer = '';
-    this.done = false;
-    this.lastStderr = '';
-    this.turn = new Promise((resolve, reject) => { this.settle = { resolve, reject }; });
-    this.child = spawnFn(command, args, { shell: false, cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    Object.assign(this, { onEvent, cwd, maxOutputBytes, nextId: 1, pending: new Map(), permissions: new Map(), sessionId: null, buffer: '', done: false, closed: false, disposing: false, lastStderr: '', outputBytes: 0 });
+    this.child = spawnFn(command, args, { shell: false, cwd, env, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
     this.child.on('error', error => this.fail(`The agent could not start: ${error.message}`));
-    this.child.on('close', (code, signal) => this.fail(`The agent exited before finishing (${signal || `exit ${code}`}).`));
+    this.child.on('close', (code, signal) => {
+      this.closed = true;
+      clearTimeout(this.killTimer);
+      if (!this.done) this.fail(`The agent exited before finishing (${signal || `exit ${code}`}).`);
+    });
+    this.child.stdin.on('error', () => this.fail('The agent closed its input stream.'));
     this.child.stdout.setEncoding('utf8');
-    this.child.stdout.on('data', chunk => this.receiveChunk(chunk));
+    this.child.stdout.on('data', chunk => {
+      if (this.accountOutput(chunk)) this.receiveChunk(chunk);
+    });
     this.child.stderr.setEncoding('utf8');
-    this.child.stderr.on('data', chunk => { this.lastStderr = (this.lastStderr + chunk).slice(-2000); });
+    this.child.stderr.on('data', chunk => {
+      if (this.accountOutput(chunk)) this.lastStderr = (this.lastStderr + chunk).slice(-2000);
+    });
   }
 
-  fail(message) {
+  accountOutput(chunk) {
+    if (this.done) return false;
+    this.outputBytes += Buffer.byteLength(chunk);
+    if (this.outputBytes > this.maxOutputBytes) { this.fail('The agent exceeded its protocol output limit.', 'output_limit'); return false; }
+    return true;
+  }
+
+  fail(message, code) {
     if (this.done) return;
     this.done = true;
-    for (const { reject } of this.pending.values()) reject(new Error(message));
+    this.failure = Object.assign(new Error(redact(message)), code ? { code } : {});
+    for (const entry of this.pending.values()) entry.reject(this.failure);
     this.pending.clear();
     this.permissions.clear();
-    this.settle.reject(new Error(message));
+    this.dispose();
   }
 
   receiveChunk(chunk) {
     this.buffer += chunk;
     let index;
-    while ((index = this.buffer.indexOf('\n')) >= 0) {
+    while (!this.done && (index = this.buffer.indexOf('\n')) >= 0) {
       const line = this.buffer.slice(0, index);
       this.buffer = this.buffer.slice(index + 1);
       if (line.trim()) this.receive(line);
     }
-    if (Buffer.byteLength(this.buffer) > MAX_LINE_BYTES) this.fail('The agent produced an unbounded protocol line.');
+    if (Buffer.byteLength(this.buffer) > MAX_LINE_BYTES) this.fail('The agent produced an unbounded protocol line.', 'output_limit');
   }
 
   receive(line) {
-    if (Buffer.byteLength(line) > MAX_LINE_BYTES) return this.fail('The agent produced an unbounded protocol line.');
+    if (this.done) return;
+    if (Buffer.byteLength(line) > MAX_LINE_BYTES) return this.fail('The agent produced an unbounded protocol line.', 'output_limit');
     let message;
-    try { message = JSON.parse(line); } catch { return; /* agents may print plain logs on stdio */ }
+    try { message = JSON.parse(line); } catch { return; }
     if (!message || typeof message !== 'object' || Array.isArray(message)) return;
     if (typeof message.method === 'string' && message.id !== undefined) return this.serverRequest(message);
     if (typeof message.method === 'string') return this.notification(message);
-    if (message.id !== undefined) {
-      const entry = this.pending.get(message.id);
-      if (entry) {
-        this.pending.delete(message.id);
-        if (message.error) entry.reject(new Error(text(message.error.message) || `Agent protocol error ${message.error.code}.`));
-        else entry.resolve(message.result);
-      }
+    const entry = this.pending.get(message.id);
+    if (entry) {
+      this.pending.delete(message.id);
+      if (message.error) entry.reject(new Error(text(message.error.message) || 'Agent protocol error.'));
+      else entry.resolve(message.result);
     }
   }
 
@@ -78,70 +79,66 @@ class AcpAgent {
   }
 
   request(method, params, timeoutMs = 30000) {
+    if (this.done) return Promise.reject(this.failure || new Error('The agent session is closed.'));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`The agent did not answer "${method}" within ${Math.round(timeoutMs / 1000)}s.`));
       }, timeoutMs);
-      timer.unref?.();
+      timer.unref();
       this.pending.set(id, { resolve: value => { clearTimeout(timer); resolve(value); }, reject: error => { clearTimeout(timer); reject(error); } });
       this.send({ jsonrpc: '2.0', id, method, params });
     });
   }
 
-  serverRequest(message) {
-    const { method, params = {}, id } = message;
-    if (method !== 'session/request_permission') {
-      return this.send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Not implemented by the Route3 control center.' } });
-    }
-    const options = (Array.isArray(params.options) ? params.options : [])
-      .filter(option => option && typeof option.optionId === 'string' && option.optionId)
-      .map(option => ({ optionId: option.optionId.slice(0, 200), kind: text(option.kind, 60), name: text(option.name, 120) || text(option.kind, 60) || option.optionId.slice(0, 200) }));
-    if (!options.length) return this.send({ jsonrpc: '2.0', id, result: { outcome: { outcome: 'cancelled' } } });
-    const requestId = String(id).slice(0, 200);
-    this.permissions.set(requestId, { rawId: id });
-    this.onEvent({ type: 'permission', requestId, title: text(params.toolCall?.title, 300) || text(params.toolCall?.kind, 60) || 'The agent requests a tool decision.', options });
+  serverRequest({ method, params = {}, id }) {
+    if (method !== 'session/request_permission') return this.send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Not implemented by Route3.' } });
+    const requestId = String(id);
+    const options = (Array.isArray(params.options) ? params.options : []).filter(option => option && typeof option.optionId === 'string' && option.optionId.length > 0 && option.optionId.length <= 200 && ['allow_once','allow_always','reject_once','reject_always'].includes(option.kind)).slice(0, 16).map(option => ({ optionId: option.optionId, kind: option.kind, name: text(option.name, 120) || option.kind }));
+    if (params.sessionId !== this.sessionId || !options.length || requestId.length > 200 || this.permissions.size >= 16 || this.permissions.has(requestId)) return this.send({ jsonrpc: '2.0', id, result: { outcome: { outcome: 'cancelled' } } });
+    this.permissions.set(requestId, { rawId: id, options: new Set(options.map(option => option.optionId)) });
+    const detail = params.toolCall?.rawInput ? text(JSON.stringify(params.toolCall.rawInput), 4000) : null;
+    this.onEvent({ type: 'permission', requestId, title: text(params.toolCall?.title, 300) || text(params.toolCall?.kind, 60) || 'The agent requests a tool decision.', detail, options });
   }
 
   notification(message) {
-    if (message.method !== 'session/update') return;
+    if (message.method !== 'session/update' || (message.params?.sessionId && message.params.sessionId !== this.sessionId)) return;
     const update = message.params?.update;
     if (!update || typeof update !== 'object') return;
-    const kind = update.sessionUpdate;
-    if (kind === 'agent_message_chunk') {
-      if (typeof update.content?.text === 'string' && update.content.text) this.onEvent({ type: 'message', text: update.content.text });
-    } else if (kind === 'tool_call' || kind === 'tool_call_update') {
-      const parts = [text(update.title, 200) || text(update.kind, 60) || String(update.toolCallId || 'call')];
-      if (update.kind) parts.push(update.kind);
-      if (update.status) parts.push(update.status);
+    if (update.sessionUpdate === 'agent_message_chunk' && typeof update.content?.text === 'string') this.onEvent({ type: 'message', text: update.content.text });
+    else if (['tool_call', 'tool_call_update'].includes(update.sessionUpdate)) {
+      const parts = [text(update.title, 200) || text(update.kind, 60) || text(update.toolCallId, 120) || 'call', text(update.kind, 60), text(update.status, 60)].filter(Boolean);
       this.onEvent({ type: 'tool', text: parts.join(' · ') });
-    } else if (kind === 'session_metadata') {
-      const model = text(update.model, 150) || text(update.agentName, 150);
+    } else if (update.sessionUpdate === 'session_metadata') {
+      const model = text(update.model, 150);
       if (model) this.onEvent({ type: 'metadata', model });
     }
   }
 
   async start(promptText) {
-    await this.request('initialize', { protocolVersion: PROTOCOL_VERSION, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } } });
-    this.send({ jsonrpc: '2.0', method: 'initialized' });
-    const session = await this.request('session/new', { cwd: this.cwd, mcpServers: {} });
-    if (typeof session?.sessionId !== 'string' || !session.sessionId) throw new Error('The agent did not provide a session id.');
-    this.sessionId = session.sessionId;
-    this.onEvent({ type: 'session', sessionId: session.sessionId.slice(0, 128) });
-    const result = await this.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text: promptText }] }, 24 * 60 * 60 * 1000);
-    this.done = true;
-    this.permissions.clear();
-    this.settle.resolve(result || {});
-    return result || {};
+    try {
+      const initialized = await this.request('initialize', { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false }, clientInfo: { name: 'route3-control', version: '2.0.1' } });
+      if (initialized?.protocolVersion !== 1) throw new Error('The agent negotiated an unsupported ACP protocol version.');
+      const session = await this.request('session/new', { cwd: this.cwd, mcpServers: [] });
+      if (typeof session?.sessionId !== 'string' || !session.sessionId) throw new Error('The agent did not provide a session id.');
+      this.sessionId = session.sessionId;
+      this.onEvent({ type: 'session', sessionId: session.sessionId.slice(0, 128) });
+      if (session.models?.currentModelId) this.onEvent({ type: 'metadata', model: text(session.models.currentModelId, 150) });
+      const result = await this.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text: promptText }] }, 24 * 60 * 60 * 1000);
+      if (!result || typeof result.stopReason !== 'string') throw new Error('The agent did not report a prompt stop reason.');
+      return result;
+    } finally {
+      this.dispose();
+    }
   }
 
   respondPermission(requestId, optionId) {
     const pending = this.permissions.get(requestId);
-    if (!pending) return false;
+    if (!pending || this.done) return false;
+    if (optionId != null && !pending.options.has(optionId)) return false;
     this.permissions.delete(requestId);
-    if (this.done) return true;
-    const outcome = typeof optionId === 'string' && optionId ? { outcome: 'selected', optionId: optionId.slice(0, 200) } : { outcome: 'cancelled' };
+    const outcome = optionId != null ? { outcome: 'selected', optionId } : { outcome: 'cancelled' };
     this.send({ jsonrpc: '2.0', id: pending.rawId, result: { outcome } });
     return true;
   }
@@ -149,17 +146,29 @@ class AcpAgent {
   async cancel() {
     if (this.done) return;
     for (const requestId of [...this.permissions.keys()]) this.respondPermission(requestId, null);
-    if (this.sessionId) {
-      try { await this.request('session/cancel', { sessionId: this.sessionId, reason: 'cancelled' }, 5000); }
-      catch { /* the prompt response or process close reports the final state */ }
-    }
+    if (this.sessionId) this.send({ jsonrpc: '2.0', method: 'session/cancel', params: { sessionId: this.sessionId } });
+  }
+
+  signal(signal) {
+    if (this.closed || !this.child.pid) return;
+    try {
+      if (process.platform !== 'win32') process.kill(-this.child.pid, signal);
+      else this.child.kill(signal);
+    } catch (error) { if (error.code !== 'ESRCH') { try { this.child.kill(signal); } catch {} } }
   }
 
   dispose() {
+    if (this.disposing) return;
+    this.disposing = true;
     this.done = true;
-    try { this.child.kill('SIGTERM'); } catch { /* already stopped */ }
-    const kill = setTimeout(() => { try { this.child.kill('SIGKILL'); } catch { /* already stopped */ } }, 2000);
-    kill.unref?.();
+    for (const entry of this.pending.values()) entry.reject(this.failure || new Error('The agent session was closed.'));
+    this.pending.clear();
+    this.permissions.clear();
+    this.signal('SIGTERM');
+    if (!this.closed) {
+      this.killTimer = setTimeout(() => this.signal('SIGKILL'), 1000);
+      this.killTimer.unref();
+    }
   }
 }
 

@@ -35,7 +35,7 @@ function mergeInstall(src,dest,options){
  const exists=fs.existsSync(dest)||(()=>{try{return !!fs.lstatSync(dest);}catch{return false;}})();
  try{
   if(exists)fs.cpSync(dest,stage,{recursive:true,dereference:true});
-  fs.cpSync(src,stage,{recursive:true,force:true,dereference:true});
+  fs.cpSync(src,stage,{recursive:true,force:true,dereference:true,filter:file=>!(src===path.join(ROOT,'control-center') && path.relative(src,file).split(path.sep).slice(0,2).join('/')==='mac/build')});
   if(exists){fs.mkdirSync(path.dirname(backup),{recursive:true,mode:0o700});fs.renameSync(dest,backup);}
   try{fs.renameSync(stage,dest);}catch(error){if(exists)fs.renameSync(backup,dest);throw error;}
   if(exists&&!options.quiet)console.log(`Backup: ${backup}`);

@@ -20,7 +20,7 @@ function json(response, status, value) {
 
 function readJSON(request) {
   return new Promise((resolve, reject) => {
-    let body = '', bytes = 0, failed = false;
+    const chunks = []; let bytes = 0, failed = false;
     request.on('data', chunk => {
       bytes += chunk.length;
       if (bytes > 40000) {
@@ -28,12 +28,12 @@ function readJSON(request) {
         failed = true;
         return;
       }
-      body += chunk.toString('utf8');
+      if (!failed) chunks.push(chunk);
     });
     request.on('end', () => {
       if (failed) return;
       try {
-        const data = JSON.parse(body || '{}');
+        const data = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
         if (!data || Array.isArray(data) || typeof data !== 'object') throw new Error();
         resolve(data);
       } catch { reject(Object.assign(new Error('A JSON object is required.'), { statusCode: 400 })); }
@@ -45,6 +45,7 @@ function readJSON(request) {
 function createServer(options = {}) {
   const token = crypto.randomBytes(32).toString('hex');
   const workspace = fs.realpathSync(options.workspace || process.env.ROUTE3_WORKSPACE || process.cwd());
+  if (!fs.statSync(workspace).isDirectory()) throw new Error('Workspace must be a directory.');
   const experts = options.experts || new ExpertRegistry({ home: options.home });
   const jobs = options.jobs || new JobManager({ workspace, experts, ...options.jobOptions });
   const integrations = options.integrations || new Integrations(options.integrationOptions);
@@ -84,7 +85,8 @@ function createServer(options = {}) {
         if (pathname === '/api/bootstrap') return json(response, 200, { token, csrfToken: token, workspace });
         if (pathname === '/api/state') {
           const data = await collect();
-          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: data.warnings || [], agents: jobs.agents(), experts: experts.list(), jobs: jobs.list(), integrations: integrations.snapshot(), workspace, generatedAt: new Date().toISOString() });
+          const expertList = experts.list();
+          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || [])], agents: jobs.agents(), experts: expertList, jobs: jobs.list(), integrations: integrations.snapshot(), workspace, generatedAt: new Date().toISOString() });
         }
         if (Object.hasOwn(STATIC, pathname)) {
           const [file, type] = STATIC[pathname];
@@ -145,7 +147,7 @@ if (require.main === module) {
     server.route3.shutdown();
     server.close();
     server.closeIdleConnections?.();
-    setTimeout(() => process.exit(0), 1500).unref();
+    setTimeout(() => process.exit(0), 4000).unref();
   });
 }
 

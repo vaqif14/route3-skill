@@ -36,7 +36,11 @@ function handle(line) {
   if (message.method === 'initialize') return send({ jsonrpc: '2.0', id: message.id, result: { protocolVersion: 1, agentCapabilities: { loadSession: false }, authMethods: [] } });
   if (message.method === 'initialized') return send({ jsonrpc: '2.0', id: 77, method: 'workspace/unknownCapability', params: {} });
   if (message.id === 77 && message.error) return send({ jsonrpc: '2.0', method: 'session/update', params: { update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Unknown request answered.' } } } });
-  if (message.method === 'session/new') return send({ jsonrpc: '2.0', id: message.id, result: { sessionId: 'acp-session-1' } });
+  if (message.method === 'session/new') {
+    if (!Array.isArray(message.params.mcpServers)) return send({ jsonrpc: '2.0', id: message.id, error: { code: -32602, message: 'mcpServers must be an array' } });
+    send({ jsonrpc: '2.0', id: 77, method: 'workspace/unknownCapability', params: {} });
+    return send({ jsonrpc: '2.0', id: message.id, result: { sessionId: 'acp-session-1' } });
+  }
   if (message.method === 'session/prompt') {
     prompt = message;
     send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: message.params.sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Working. api_key=private-acp-value' } } } });
@@ -53,18 +57,18 @@ function handle(line) {
     return process.exit(0);
   }
   if (message.method === 'session/cancel') {
-    send({ jsonrpc: '2.0', id: message.id, result: {} });
+    if (message.id !== undefined) throw new Error('session/cancel must be a notification');
     if (prompt) { send({ jsonrpc: '2.0', id: prompt.id, result: { stopReason: 'cancelled' } }); prompt = null; }
     process.exit(0);
   }
 }
 `;
 
-function fixture(t) {
+function fixture(t, script = FAKE_SERVER) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'route3-acp-test-'));
   t.after(() => { delete process.env.ROUTE3_ACP_WITNESS; fs.rmSync(directory, { recursive: true, force: true }); });
   const command = path.join(directory, 'fake-kimi-acp');
-  fs.writeFileSync(command, `#!${process.execPath}\n${FAKE_SERVER}\n`, { mode: 0o700 });
+  fs.writeFileSync(command, `#!${process.execPath}\n${script}\n`, { mode: 0o700 });
   const witness = path.join(directory, 'witness.json');
   process.env.ROUTE3_ACP_WITNESS = witness;
   return { directory, command, witness };
@@ -150,4 +154,42 @@ test('ACP client answers unknown server requests instead of hanging the agent', 
   const result = await turn;
   assert.equal(result.stopReason, 'cancelled');
   assert.ok(replies.some(line => line.includes('"outcome":"cancelled"')));
+});
+
+
+test('ACP closes persistent agent processes after completion and does not report token-limit stops as completed', async t => {
+  const script=FAKE_SERVER.replace("const stopReason = outcome.outcome === 'cancelled' ? 'cancelled' : 'end_turn';", "const stopReason = 'max_tokens';").replace('return process.exit(0);','return setInterval(()=>{},1000);');
+  const {directory,command}=fixture(t,script);
+  const manager=new JobManager({workspace:directory,commands:{kimi:command}});t.after(()=>manager.shutdown());
+  const started=manager.start({agent:'kimi',prompt:'test'});const job=manager.jobs.get(started.id);
+  await eventually(()=>job.status==='awaiting_approval');
+  manager.respondPermission(job.id,{requestId:'42',optionId:'allow_once'});
+  await eventually(()=>job.endedAt && manager.children.size===0);
+  assert.equal(job.status,'incomplete');assert.equal(job.stopReason,'max_tokens');assert.equal(manager.acps.size,0);
+});
+
+test('protocol errors while awaiting a decision finish as failed and release owned processes', async t => {
+  const script=FAKE_SERVER.replace("const outcome = message.result.outcome || {};", "process.exit(7); const outcome = message.result.outcome || {};");
+  const {directory,command}=fixture(t,script);
+  const manager=new JobManager({workspace:directory,commands:{kimi:command}});t.after(()=>manager.shutdown());
+  const started=manager.start({agent:'kimi',prompt:'test'});const job=manager.jobs.get(started.id);
+  await eventually(()=>job.status==='awaiting_approval');
+  manager.children.get(job.id).kill('SIGTERM');
+  await eventually(()=>job.endedAt && manager.children.size===0);
+  assert.equal(job.status,'failed');assert.deepEqual(job.permissions,[]);
+});
+
+test('raw protocol noise counts toward the output limit', async t => {
+  const {directory,command}=fixture(t,"process.stdout.write('x'.repeat(3000));setInterval(()=>{},1000);");
+  const manager=new JobManager({workspace:directory,commands:{kimi:command},maxOutputBytes:1000});t.after(()=>manager.shutdown());
+  const started=manager.start({agent:'kimi',prompt:'test'});const job=manager.jobs.get(started.id);
+  await eventually(()=>job.endedAt && manager.children.size===0);
+  assert.equal(job.status,'output_limit');
+});
+
+test('missing ACP executable rejects cleanly without an unhandled secondary promise', async t => {
+  const {directory}=fixture(t);
+  const agent=new AcpAgent({command:path.join(directory,'missing'),cwd:directory});
+  await assert.rejects(agent.start('test'),/could not start|closed/);
+  assert.equal(agent.pending.size,0);assert.equal(agent.done,true);
 });

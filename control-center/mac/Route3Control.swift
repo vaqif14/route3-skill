@@ -8,6 +8,62 @@
 import AppKit
 import WebKit
 
+enum RuntimeEnvironment {
+    static func versionOrder(_ left: String, _ right: String) -> Bool {
+        left.compare(right, options: .numeric) == .orderedDescending
+    }
+
+    static func childPath(environment: [String: String], home: String, node: String? = nil) -> String {
+        var paths = node.map { [URL(fileURLWithPath: $0).deletingLastPathComponent().path] } ?? []
+        paths += (environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        paths += ["\(home)/.local/bin", "\(home)/.kimi-code/bin", "\(home)/.bun/bin",
+                  "\(home)/.cargo/bin", "\(home)/.npm-global/bin", "/opt/homebrew/bin",
+                  "/opt/homebrew/sbin", "/usr/local/bin", "/usr/local/sbin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        let nvm = environment["NVM_DIR"] ?? "\(home)/.nvm"
+        let versionsRoot = URL(fileURLWithPath: nvm).appendingPathComponent("versions/node")
+        let versions = ((try? FileManager.default.contentsOfDirectory(atPath: versionsRoot.path)) ?? []).sorted(by: versionOrder)
+        paths += versions.map { versionsRoot.appendingPathComponent($0).appendingPathComponent("bin").path }
+        var seen = Set<String>()
+        return paths.filter { $0.hasPrefix("/") && seen.insert($0).inserted }.joined(separator: ":")
+    }
+}
+
+enum PanelIdentity {
+    static func isHealthy(data: Data?, response: URLResponse?, error: Error?) -> Bool {
+        guard error == nil, (response as? HTTPURLResponse)?.statusCode == 200,
+              let data, let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+        return object["service"] as? String == "route3-control-center"
+    }
+
+    static func isLocal(_ url: URL, port: Int) -> Bool {
+        url.scheme == "http" && url.host == "127.0.0.1" && url.port == port && url.user == nil && url.password == nil
+    }
+
+    static func isExternalWeb(_ url: URL) -> Bool {
+        ["http", "https"].contains(url.scheme?.lowercased() ?? "") && url.host != nil && url.user == nil && url.password == nil
+    }
+}
+
+if CommandLine.arguments.contains("--self-test") {
+    let path = RuntimeEnvironment.childPath(environment: ["PATH": "/usr/bin:/bin:relative:/usr/bin"], home: "/test-home", node: "/selected/bin/node").split(separator: ":").map(String.init)
+    precondition(path.first == "/selected/bin")
+    precondition(path.contains("/test-home/.local/bin") && path.contains("/test-home/.kimi-code/bin") && path.contains("/opt/homebrew/bin"))
+    precondition(path.count == Set(path).count && !path.contains("relative"))
+    precondition(["v9.0.0", "v22.1.0", "v20.19.0"].sorted(by: RuntimeEnvironment.versionOrder).first == "v22.1.0")
+    let url = URL(string: "http://127.0.0.1:43173/api/health")!
+    let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+    precondition(PanelIdentity.isHealthy(data: Data(#"{"service":"route3-control-center"}"#.utf8), response: response, error: nil))
+    precondition(!PanelIdentity.isHealthy(data: Data(#"{"service":"unrelated"}"#.utf8), response: response, error: nil))
+    precondition(!PanelIdentity.isHealthy(data: Data("OK".utf8), response: response, error: nil))
+    precondition(PanelIdentity.isLocal(url, port: 43173))
+    precondition(!PanelIdentity.isLocal(URL(string: "http://127.0.0.1:8000")!, port: 43173))
+    precondition(!PanelIdentity.isExternalWeb(URL(string: "file:///etc/passwd")!))
+    precondition(!PanelIdentity.isExternalWeb(URL(string: "javascript:alert(1)")!))
+    precondition(PanelIdentity.isExternalWeb(URL(string: "https://example.com")!))
+    print("Native self-check passed: Finder PATH, numeric NVM order, server identity, navigation confinement.")
+    exit(0)
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
@@ -15,7 +71,7 @@ app.setActivationPolicy(.regular)
 app.activate(ignoringOtherApps: true)
 app.run()
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
     private var window: NSWindow!
     private var webView: WKWebView!
     private var statusField: NSTextField!
@@ -41,6 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
         webView = WKWebView(frame: .zero)
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(webView)
 
@@ -125,6 +182,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         showPlaceholder("Control center is unreachable. The status bar below shows the server state; it reloads automatically once the server responds.")
     }
 
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
+        if url.absoluteString == "about:blank" || PanelIdentity.isLocal(url, port: server.port) {
+            decisionHandler(.allow)
+        } else {
+            // Only explicit user link clicks may leave the panel, in the system browser.
+            if navigationAction.navigationType == .linkActivated && PanelIdentity.isExternalWeb(url) {
+                NSWorkspace.shared.open(url)
+            }
+            decisionHandler(.cancel)
+        }
+    }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        guard let url = navigationAction.request.url else { return nil }
+        if PanelIdentity.isLocal(url, port: server.port) { webView.load(URLRequest(url: url)) }
+        else if navigationAction.navigationType == .linkActivated && PanelIdentity.isExternalWeb(url) { NSWorkspace.shared.open(url) }
+        return nil
+    }
+
     private func renderStatus(_ line: String, healthy: Bool) {
         statusField.stringValue = line
         statusField.textColor = healthy ? NSColor.systemGreen : NSColor.systemRed
@@ -133,7 +212,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
     // MARK: - Actions
 
-    @objc private func openInBrowser() { NSWorkspace.shared.open(panelURL) }
+    @objc private func openInBrowser() {
+        guard server.isHealthy else { server.ensureRunning(); return }
+        NSWorkspace.shared.open(panelURL)
+    }
 
     @objc private func restartServer() {
         if server.ownsServer {
@@ -210,6 +292,11 @@ final class ServerController: NSObject {
     private var healthTimer: Timer?
     private var logHandle: FileHandle?
     private var startupAttempts = 0
+    private var checkingHealth = false
+    private var healthGeneration = 0
+    private var stopping = false
+    private var restartAfterStop = false
+    private let logQueue = DispatchQueue(label: "az.itinnovations.route3.log")
     var onState: ((String, Bool) -> Void)?
     var onHealthy: (() -> Void)?
 
@@ -255,8 +342,8 @@ final class ServerController: NSObject {
     }
 
     func ensureRunning(force: Bool = false) {
-        guard force || !isHealthy else { return }
-        if !isHealthy { startOwnedServer() }
+        guard !stopping, force || !isHealthy else { return }
+        checkHealth(allowStart: true)
     }
 
     func setWorkspace(_ path: String) {
@@ -272,23 +359,24 @@ final class ServerController: NSObject {
 
     func restartOwnedServer() {
         guard ownsServer else { return }
+        restartAfterStop = true
         stopOwnedServer()
-        startOwnedServer()
     }
 
     func stopOwnedServer() {
-        guard let process = ownedProcess else { return }
-        ownedProcess = nil
-        ownsServer = false
-        process.interrupt()   // SIGTERM-like delivery; node stops its own children
-        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
-            if process.isRunning { process.terminate() }
-        }
+        guard let process = ownedProcess, !stopping else { return }
+        stopping = true
+        isHealthy = false
+        healthGeneration += 1
+        checkingHealth = false
         status("Local server: stopping…", healthy: false)
+        // Keep ownership until the termination handler runs. A restart cannot bind
+        // a replacement while the previous Node process is still shutting down.
+        if process.isRunning { process.terminate() }
     }
 
     private func startOwnedServer() {
-        guard ownedProcess == nil else { return }
+        guard ownedProcess == nil, !stopping else { return }
         guard let script = serverScript else {
             status("Route3 server script was not found. Reinstall with route3-skill install.", healthy: false)
             return
@@ -297,33 +385,42 @@ final class ServerController: NSObject {
             status("Node.js was not found. Install Node 18+ (Homebrew or nvm) and reopen this app.", healthy: false)
             return
         }
+        startupAttempts += 1
         prepareLog()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: node)
         process.arguments = [script.path, "--port", String(port), "--workspace", workspace]
         var environment = ProcessInfo.processInfo.environment
+        environment["PATH"] = RuntimeEnvironment.childPath(environment: environment, home: NSHomeDirectory(), node: node)
         environment["ROUTE3_PORT"] = String(port)
         environment["ROUTE3_WORKSPACE"] = workspace
         process.environment = environment
         process.currentDirectoryURL = URL(fileURLWithPath: workspace)
         pipeOutput(process)
+        process.terminationHandler = { [weak self] finished in
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.ownedProcess === finished else { return }
+                self.ownedProcess = nil
+                self.ownsServer = false
+                self.isHealthy = false
+                self.stopping = false
+                self.healthGeneration += 1
+                self.checkingHealth = false
+                let restart = self.restartAfterStop
+                self.restartAfterStop = false
+                self.status("Local server: stopped. Use Restart Local Server.", healthy: false)
+                if restart { self.checkHealth(allowStart: true) }
+            }
+        }
         do {
             try process.run()
         } catch {
+            process.terminationHandler = nil
             status("Node could not start the server: \(error.localizedDescription)", healthy: false)
             return
         }
         ownedProcess = process
         ownsServer = true
-        startupAttempts += 1
-        process.terminationHandler = { [weak self] _ in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.ownedProcess === process else { return }
-                self.ownedProcess = nil
-                self.ownsServer = false
-                self.status("Local server: stopped. Use Restart Local Server.", healthy: false)
-            }
-        }
         status("Local server: starting (owned by this app)…", healthy: false)
     }
 
@@ -353,55 +450,50 @@ final class ServerController: NSObject {
     }
 
     private func appendLog(_ data: Data) {
-        DispatchQueue.global().async { [weak self] in
+        logQueue.async { [weak self] in
             try? self?.logHandle?.write(contentsOf: data)
         }
     }
 
     private func discoverNode() -> String? {
-        var seen = Set<String>()
-        var candidates: [String] = []
-        let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
-        candidates += path.split(separator: ":").map(String.init)
-        candidates += ["/opt/homebrew/bin", "/usr/local/bin"]
-        for directory in candidates where !seen.contains(directory) {
-            seen.insert(directory)
-            let candidate = URL(fileURLWithPath: directory).appendingPathComponent("node")
+        let path = RuntimeEnvironment.childPath(environment: ProcessInfo.processInfo.environment, home: NSHomeDirectory())
+        for directory in path.split(separator: ":") {
+            let candidate = URL(fileURLWithPath: String(directory)).appendingPathComponent("node")
             if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate.path }
-        }
-        // Finder-launched apps miss nvm's PATH; enumerate its version directories.
-        let nvm = NSHomeDirectory() + "/.nvm/versions/node"
-        if let versions = try? FileManager.default.contentsOfDirectory(atPath: nvm).sorted(by: >) {
-            for version in versions {
-                let candidate = URL(fileURLWithPath: nvm).appendingPathComponent(version).appendingPathComponent("bin/node")
-                if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate.path }
-            }
         }
         return nil
     }
 
-    private func checkHealth() {
+    private func checkHealth(allowStart: Bool = false) {
+        precondition(Thread.isMainThread)
+        guard !checkingHealth, !stopping else { return }
+        checkingHealth = true
+        let generation = healthGeneration
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/api/health")!)
         request.timeoutInterval = 3
-        let task = URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
-            guard let self else { return }
-            let healthy = error == nil && (response as? HTTPURLResponse)?.statusCode == 200
-            let becameHealthy = healthy && !self.isHealthy
-            self.isHealthy = healthy
-            if healthy {
-                self.status("Local server: running\(self.ownsServer ? " (started by this app)" : " (external)") · workspace \(self.workspace)", healthy: true)
-                if becameHealthy { DispatchQueue.main.async { [weak self] in self?.onHealthy?() } }
-            } else {
-                if self.ownedProcess == nil && self.startupAttempts == 0 {
-                    // No server anywhere: adopt ownership instead of staring at a dead port.
-                    DispatchQueue.main.async { self.startOwnedServer() }
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            let healthy = PanelIdentity.isHealthy(data: data, response: response, error: error)
+            let refused = (error as? URLError)?.code == .cannotConnectToHost
+            DispatchQueue.main.async { [weak self] in
+                guard let self, generation == self.healthGeneration else { return }
+                self.checkingHealth = false
+                guard !self.stopping else { return }
+                let becameHealthy = healthy && !self.isHealthy
+                self.isHealthy = healthy
+                if healthy {
+                    self.status("Local server: running\(self.ownsServer ? " (started by this app)" : " (external)") · workspace \(self.workspace)", healthy: true)
+                    if becameHealthy { self.onHealthy?() }
+                } else if response != nil {
+                    self.status("Port \(self.port) is occupied by an unverified service. Route3 will not attach or stop it.", healthy: false)
+                } else if refused && self.ownedProcess == nil && (allowStart || self.startupAttempts == 0) {
+                    self.startOwnedServer()
                 } else if self.ownedProcess == nil {
-                    self.status("Local server: not responding on port \(self.port).", healthy: false)
+                    self.status("Local server: not responding on port \(self.port). Use Restart Local Server.", healthy: false)
                 } else {
                     self.status("Local server: starting…", healthy: false)
                 }
             }
-        }
-        task.resume()
+        }.resume()
     }
 }

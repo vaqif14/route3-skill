@@ -51,11 +51,12 @@ function observedStatus(service, data) {
   return 'unknown';
 }
 
-function commandFor(service, action) {
+function commandFor(service, action, accountId) {
   if (service === 'openclaw') return ['gateway', action, ...(action === 'status' ? ['--json'] : [])];
   if (service === 'browser') return ['browser', '--json', action];
   if (action === 'status') return ['channels', 'status', '--channel', 'telegram', '--json'];
-  return ['gateway', 'call', `channels.${action}`, '--params', JSON.stringify({ channel: 'telegram' }), '--json'];
+  if (typeof accountId !== 'string' || !accountId) throw new Error('A verified Telegram account is required.');
+  return ['gateway', 'call', `channels.${action}`, '--params', JSON.stringify({ channel: 'telegram', accountId }), '--json'];
 }
 
 class Integrations {
@@ -85,7 +86,24 @@ class Integrations {
     if (this.busy) throw Object.assign(new Error('An integration command is already running.'), { statusCode: 409 });
     this.busy = true;
     try {
-      const result = await this.run(this.command, commandFor(service, action), { env: this.env, timeoutMs: this.timeoutMs });
+      let accountId;
+      if (service === 'telegram' && action !== 'status') {
+        const observed = await this.run(this.command, commandFor(service, 'status'), { env: this.env, timeoutMs: this.timeoutMs });
+        const failure = classify(observed);
+        const data = failure ? null : parseJSON(observed.output);
+        const accounts = data?.channelAccounts?.telegram;
+        const defaultId = data?.channelDefaultAccountId?.telegram;
+        const account = Array.isArray(accounts) ? accounts.find(item => item.accountId === (defaultId || 'default')) : null;
+        if (!failure && account && typeof account.accountId === 'string' && account.configured !== false) accountId = account.accountId;
+        if (!accountId) {
+          const state = this.state[service];
+          state.status = failure || (observedStatus(service, data) === 'not_configured' ? 'not_configured' : 'unknown');
+          state.checkedAt = new Date().toISOString();
+          state.message = 'No verified default Telegram account is available. Check the gateway channel configuration before changing its state.';
+          return { ...state };
+        }
+      }
+      const result = await this.run(this.command, commandFor(service, action, accountId), { env: this.env, timeoutMs: this.timeoutMs });
       const failure = classify(result);
       const state = this.state[service];
       state.checkedAt = new Date().toISOString();

@@ -1,3 +1,13 @@
+# 2.0.1 — Reliability fixes after expert panel review
+
+- Preserve custom experts on corrupt storage and serialize writes across panel instances.
+- Fix scoped session lookup, symlink workspaces and incomplete cache breakdowns.
+- Correct ACP session setup/cancellation, bound raw output and clean up owned processes.
+- Target the observed Telegram account explicitly for lifecycle commands.
+- Preserve split UTF-8 prompts and show provider capability reasons and byte limits.
+- Fix Finder CLI discovery, verify local server identity, and stage native app upgrades.
+- Keep compiled machine-specific app bundles out of the npm package.
+
 # 2.0.0 — Measured orchestration and Mac control center
 
 - Add local session usage accounting, context recommendations and private checkpoints.

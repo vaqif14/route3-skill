@@ -189,7 +189,7 @@ function parseIndex(item, data) {
   return { sessions, warnings: [] };
 }
 
-async function collectTelemetry({ home = os.homedir(), limit = 30, thresholds = {}, bounds: requestedBounds = {} } = {}) {
+async function collectTelemetry({ home = os.homedir(), limit = 30, cwd, sessionId, thresholds = {}, bounds: requestedBounds = {} } = {}) {
   const bounds = { ...DEFAULT_BOUNDS };
   for (const key of Object.keys(bounds)) if (Number.isInteger(requestedBounds[key]) && requestedBounds[key] > 0) bounds[key] = Math.min(bounds[key], requestedBounds[key]);
   const limits = { watch: 65, recommended: 80, urgent: 90, ...thresholds };
@@ -201,7 +201,37 @@ async function collectTelemetry({ home = os.homedir(), limit = 30, thresholds = 
     discover(path.join(home, '.claude', 'projects'), 'claude', bounds, warnings),
     discover(path.join(home, '.openclaw', 'agents'), 'openclaw', bounds, warnings, true)
   ]);
-  const files = discovered.flat().sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, count);
+  const normalize = async value => {
+    if (typeof value !== 'string' || !value) return null;
+    try { return await fs.realpath(value); } catch { return path.resolve(value); }
+  };
+  const requestedCwd = await normalize(cwd);
+  const selected = Boolean(requestedCwd || sessionId);
+  // Explicit lookup searches the bounded discovery set before limiting results.
+  // Avoid parsing every full log: metadata heads select candidates cheaply.
+  let files = discovered.flat().sort((a, b) => b.mtimeMs - a.mtimeMs);
+  if (selected) {
+    const candidates = [];
+    for (const item of files) {
+      if (item.file.endsWith('sessions.json')) { candidates.push(item); continue; }
+      let handle;
+      try {
+        handle = await fs.open(item.file, 'r');
+        const buffer = Buffer.alloc(Math.min(item.size, bounds.headBytes));
+        const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+        let head = buffer.subarray(0, bytesRead).toString('utf8');
+        if (item.size > bytesRead) head = head.slice(0, head.lastIndexOf('\n') + 1);
+        const metadata = parseSession(item, { head: '', lines: head.split('\n'), partial: true }, bounds).sessions[0];
+        const idMatches = !sessionId || metadata.id === sessionId;
+        const cwdMatches = !requestedCwd || await normalize(metadata.cwd) === requestedCwd;
+        if (idMatches && cwdMatches) candidates.push(item);
+      } catch { /* rotated/unreadable session: final coverage warning stays explicit */ }
+      finally { if (handle) await handle.close(); }
+    }
+    files = candidates;
+    warnings.push('Session lookup searches bounded discovery and metadata heads; files outside those bounds may be omitted.');
+  }
+  files = files.slice(0, count);
   const sessionsById = new Map();
   for (const item of files) {
     const key = `${item.file}:${item.ino}:${item.size}:${item.mtimeMs}:${JSON.stringify(bounds)}`;
@@ -216,6 +246,8 @@ async function collectTelemetry({ home = os.homedir(), limit = 30, thresholds = 
       warnings.push(...result.warnings);
       for (const raw of result.sessions) {
         const session = structuredClone(raw);
+        if (sessionId && session.id !== sessionId) continue;
+        if (requestedCwd && await normalize(session.cwd) !== requestedCwd) continue;
         const id = `${session.provider}:${session.id}`;
         const previous = sessionsById.get(id);
         if (previous) {
@@ -244,6 +276,7 @@ async function collectTelemetry({ home = os.homedir(), limit = 30, thresholds = 
   return { sessions, summary: { sessionCount: sessions.length, measuredSessions: sessions.filter(s => s.totalTokens !== null).length,
     unknownUsageSessions: sessions.filter(s => s.totalTokens === null).length,
     partialUsageSessions: sessions.filter(s => s.measurement.usage === 'partial_messages').length,
+    completeBreakdown: sessions.length > 0 && sessions.every(s => ['inputTokens','outputTokens','cachedInputTokens'].every(field => s[field] !== null)),
     inputTokens: total('inputTokens'), outputTokens: total('outputTokens'), cachedInputTokens: total('cachedInputTokens'), totalTokens: total('totalTokens'),
     compactRecommended: sessions.filter(s => ['recommended', 'urgent'].includes(s.compact.level)).length,
     scope: 'Selected local sessions only; partial logs are lower bounds and missing usage is excluded. Tokens are not currency cost.',

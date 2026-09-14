@@ -10,7 +10,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { redact } = require('./security');
 
-const LIMITS = Object.freeze({ labelMax: 60, focusMax: 200, briefMax: 2000, customLimit: 12 });
+const LIMITS = Object.freeze({ labelMax: 60, focusMax: 200, briefMax: 2000, customLimit: 12, fileBytes: 196608 });
 
 const BUILTIN = [
   {
@@ -38,26 +38,98 @@ const BUILTIN = [
 class ExpertRegistry {
   constructor({ home = os.homedir(), directory } = {}) {
     this.file = path.join(directory || path.join(home, '.local/share/route3'), 'experts.json');
-    this.custom = this.load();
+    this.custom = [];
+    this.warning = null;
+    this.refresh();
   }
 
-  load() {
+  readDisk() {
+    let descriptor;
     try {
-      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      if (!raw || typeof raw !== 'object' || !Array.isArray(raw.experts)) return [];
-      return raw.experts.filter(entry => entry && typeof entry === 'object' && typeof entry.id === 'string' && typeof entry.label === 'string');
-    } catch { return []; /* missing or unreadable file starts empty; first create rebuilds it */ }
+      descriptor = fs.openSync(this.file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+    try {
+      const stat = fs.fstatSync(descriptor);
+      if (!stat.isFile() || stat.size > LIMITS.fileBytes) throw new Error('Invalid expert file size or type.');
+      const buffer = Buffer.alloc(LIMITS.fileBytes + 1);
+      let size = 0, count;
+      while (size < buffer.length && (count = fs.readSync(descriptor, buffer, size, buffer.length - size, null)) > 0) size += count;
+      if (size > LIMITS.fileBytes) throw new Error('Expert file is too large.');
+      const raw = JSON.parse(buffer.subarray(0, size).toString('utf8'));
+      if (!raw || raw.version !== 1 || !Array.isArray(raw.experts) || raw.experts.length > LIMITS.customLimit) throw new Error('Invalid expert registry.');
+      const ids = new Set(BUILTIN.map(expert => expert.id));
+      return raw.experts.map(entry => {
+        if (!entry || typeof entry !== 'object' || !/^x-[0-9a-f]{8}$/.test(entry.id) || ids.has(entry.id)
+          || typeof entry.label !== 'string' || !entry.label.trim() || entry.label.length > LIMITS.labelMax
+          || typeof entry.focus !== 'string' || entry.focus.length > LIMITS.focusMax
+          || typeof entry.brief !== 'string' || entry.brief.trim().length < 10 || entry.brief.length > LIMITS.briefMax
+          || typeof entry.createdAt !== 'string' || entry.createdAt.length > 40 || !Number.isFinite(Date.parse(entry.createdAt))) throw new Error('Invalid custom expert.');
+        ids.add(entry.id);
+        return { id: entry.id, label: redact(entry.label).slice(0, LIMITS.labelMax), focus: redact(entry.focus).slice(0, LIMITS.focusMax), brief: redact(entry.brief).slice(0, LIMITS.briefMax), custom: true, createdAt: entry.createdAt };
+      });
+    } finally { fs.closeSync(descriptor); }
   }
 
-  save() {
+  refresh() {
+    try {
+      this.custom = this.readDisk();
+      this.warning = null;
+      return true;
+    } catch {
+      this.warning = 'Custom experts could not be read or validated. The last successfully loaded list is shown; changes are disabled until the expert file is repaired.';
+      return false;
+    }
+  }
+
+  warnings() { return this.warning ? [this.warning] : []; }
+
+  save(experts) {
+    const stage = `${this.file}.stage-${crypto.randomBytes(12).toString('hex')}`;
+    let descriptor;
+    try {
+      descriptor = fs.openSync(stage, 'wx', 0o600);
+      fs.writeFileSync(descriptor, JSON.stringify({ version: 1, experts }, null, 2));
+      fs.fsyncSync(descriptor);
+      fs.closeSync(descriptor);
+      descriptor = undefined;
+      fs.renameSync(stage, this.file);
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
+      try { fs.unlinkSync(stage); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+  }
+
+  mutate(change) {
     const directory = path.dirname(this.file);
-    fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const stage = `${this.file}.stage-${Date.now()}-${process.pid}`;
-    fs.writeFileSync(stage, JSON.stringify({ version: 1, experts: this.custom }, null, 2), { mode: 0o600 });
-    fs.renameSync(stage, this.file);
+    const lock = `${this.file}.lock`;
+    let descriptor;
+    try {
+      fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+      descriptor = fs.openSync(lock, 'wx', 0o600);
+    } catch (error) {
+      throw Object.assign(new Error(error.code === 'EEXIST' ? 'The expert registry is locked by another writer. Retry after that operation finishes.' : 'The expert registry cannot be written. Check local disk access.'), { statusCode: error.code === 'EEXIST' ? 409 : 500 });
+    }
+    try {
+      if (!this.refresh()) throw Object.assign(new Error(this.warning), { statusCode: 409 });
+      const latest = this.custom.map(expert => ({ ...expert }));
+      const result = change(latest);
+      this.save(latest);
+      this.custom = latest;
+      return result;
+    } catch (error) {
+      if (error.statusCode) throw error;
+      throw Object.assign(new Error('The expert registry could not be saved. Check local disk access.'), { statusCode: 500 });
+    } finally {
+      fs.closeSync(descriptor);
+      fs.unlinkSync(lock);
+    }
   }
 
   list() {
+    this.refresh();
     return [
       ...BUILTIN.map(({ id, label, focus }) => ({ id, label, focus, custom: false })),
       ...this.custom.map(({ id, label, focus, createdAt }) => ({ id, label, focus, custom: true, createdAt })),
@@ -65,6 +137,7 @@ class ExpertRegistry {
   }
 
   find(id) {
+    this.refresh();
     if (typeof id !== 'string' || !/^[a-z0-9-]{1,64}$/.test(id)) return null;
     const builtin = BUILTIN.find(expert => expert.id === id);
     if (builtin) return { ...builtin, custom: false };
@@ -78,22 +151,24 @@ class ExpertRegistry {
     const focus = typeof input?.focus === 'string' ? input.focus.trim().slice(0, LIMITS.focusMax) : '';
     const brief = typeof input?.brief === 'string' ? input.brief.trim() : '';
     if (brief.length < 10 || brief.length > LIMITS.briefMax) throw Object.assign(new Error(`Expert instructions must contain 10–${LIMITS.briefMax} characters.`), { statusCode: 400 });
-    if (this.custom.length >= LIMITS.customLimit) throw Object.assign(new Error(`Custom expert limit reached (${LIMITS.customLimit}). Remove one before creating another.`), { statusCode: 409 });
-    let id = `x-${crypto.randomBytes(4).toString('hex')}`;
-    while (this.find(id)) id = `x-${crypto.randomBytes(4).toString('hex')}`;
-    const expert = { id, label: redact(label), focus: focus ? redact(focus) : 'İstifadəçi təyinatlı ekspert', brief: redact(brief), custom: true, createdAt: new Date().toISOString() };
-    this.custom.push(expert);
-    try { this.save(); } catch (error) { this.custom.pop(); throw Object.assign(new Error('The custom expert could not be saved. Check local disk access.'), { statusCode: 500 }); }
-    return { ...expert };
+    return this.mutate(latest => {
+      if (latest.length >= LIMITS.customLimit) throw Object.assign(new Error(`Custom expert limit reached (${LIMITS.customLimit}). Remove one before creating another.`), { statusCode: 409 });
+      let id = `x-${crypto.randomBytes(4).toString('hex')}`;
+      while (latest.some(expert => expert.id === id)) id = `x-${crypto.randomBytes(4).toString('hex')}`;
+      const expert = { id, label: redact(label).slice(0, LIMITS.labelMax), focus: focus ? redact(focus).slice(0, LIMITS.focusMax) : 'İstifadəçi təyinatlı ekspert', brief: redact(brief).slice(0, LIMITS.briefMax), custom: true, createdAt: new Date().toISOString() };
+      latest.push(expert);
+      return { ...expert };
+    });
   }
 
   remove(id) {
     if (BUILTIN.some(expert => expert.id === id)) throw Object.assign(new Error('Built-in experts cannot be deleted.'), { statusCode: 400 });
-    const index = this.custom.findIndex(expert => expert.id === id);
-    if (index < 0) throw Object.assign(new Error('Expert not found.'), { statusCode: 404 });
-    const [removed] = this.custom.splice(index, 1);
-    try { this.save(); } catch (error) { this.custom.splice(index, 0, removed); throw Object.assign(new Error('The expert could not be removed. Check local disk access.'), { statusCode: 500 }); }
-    return true;
+    return this.mutate(latest => {
+      const index = latest.findIndex(expert => expert.id === id);
+      if (index < 0) throw Object.assign(new Error('Expert not found.'), { statusCode: 404 });
+      latest.splice(index, 1);
+      return true;
+    });
   }
 }
 

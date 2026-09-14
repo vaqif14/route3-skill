@@ -143,7 +143,7 @@ class JobManager {
     // A launcher's configured workspace is its authority boundary, including symlinks.
     if (cwd !== this.workspace && !cwd.startsWith(this.workspace + path.sep)) throw Object.assign(new Error('Project directory must be inside the configured workspace. Relaunch Route3 from the desired project.'), { statusCode: 403 });
     if (this.jobs.size >= 100) {
-      const oldest = Array.from(this.jobs).find(([, job]) => !ACTIVE.has(job.status));
+      const oldest = Array.from(this.jobs).find(([id, job]) => !ACTIVE.has(job.status) && !this.children.has(id));
       if (oldest) this.jobs.delete(oldest[0]);
     }
     const skipped = automatic ? ROUTES[taskClass].slice(0, ROUTES[taskClass].indexOf(agent.id)).map(id => `${id} (${allAgents.find(item => item.id === id).status})`) : [];
@@ -207,26 +207,27 @@ class JobManager {
       job.logTail = redact(rawTail).slice(-16000);
       if (bytes > this.maxOutputBytes && ACTIVE.has(job.status)) this.cancel(job.id, 'output_limit');
     };
-    const acp = new AcpAgent({ command: agent.path, args: definition.args, cwd: job.cwd, env: this.env, onEvent: event => this.acpEvent(job, event, append) });
+    const acp = new AcpAgent({ command: agent.path, args: definition.args, cwd: job.cwd, env: this.env, maxOutputBytes: this.maxOutputBytes, onEvent: event => this.acpEvent(job, event, append) });
     this.acps.set(job.id, acp);
     this.children.set(job.id, acp.child);
+    acp.child.once('close', () => this.children.delete(job.id));
     const timer = setTimeout(() => this.cancel(job.id, 'timed_out'), this.timeoutMs);
     timer.unref();
     const finalize = () => {
       clearTimeout(timer);
       this.acps.delete(job.id);
-      this.children.delete(job.id);
+      // Keep the concurrency slot until the owned process actually exits.
       job.permissions = [];
       job.endedAt = new Date().toISOString();
     };
     acp.start(brief).then(result => {
-      if (ACTIVE.has(job.status)) job.status = 'completed';
-      job.exitCode = 0;
+      if (ACTIVE.has(job.status)) job.status = result.stopReason === 'end_turn' ? 'completed' : result.stopReason === 'cancelled' ? 'cancelled' : 'incomplete';
+      job.exitCode = null; // ACP completion is a protocol outcome, not an OS exit code.
       job.stopReason = typeof result?.stopReason === 'string' ? redact(result.stopReason).slice(0, 60) : null;
       finalize();
     }).catch(error => {
-      if (job.status === 'running') {
-        job.status = 'failed';
+      if (ACTIVE.has(job.status)) {
+        job.status = error.code === 'output_limit' ? 'output_limit' : 'failed';
         job.logTail = redact(`${error.message}${acp.lastStderr ? `\n${acp.lastStderr}` : ''}`).slice(-16000) || job.logTail;
       }
       finalize();
@@ -241,7 +242,7 @@ class JobManager {
     } else if (event.type === 'metadata') {
       job.model = event.model;
     } else if (event.type === 'permission') {
-      job.permissions.push({ requestId: event.requestId, title: event.title, options: event.options });
+      job.permissions.push({ requestId: event.requestId, title: event.title, detail: event.detail, options: event.options });
       if (job.status === 'running') job.status = 'awaiting_approval';
     }
   }
@@ -274,7 +275,7 @@ class JobManager {
       if (acp) {
         // Ask the agent to stop its turn first; force-kill only if it hangs.
         acp.cancel().catch(() => { /* the close handler reports the final state */ });
-        const hard = setTimeout(() => stopTree(child), 10000);
+        const hard = setTimeout(() => acp.dispose(), 500);
         hard.unref();
       } else {
         stopTree(child);

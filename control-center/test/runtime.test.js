@@ -89,7 +89,7 @@ test('integration status remains honest, has fixed commands and classifies failu
   assert.equal((await integrations.action('browser', 'status')).status, 'stopped');
   assert.deepEqual(calls[0].args, ['browser', '--json', 'status']);
   assert.equal((await integrations.action('browser', 'start')).status, 'unknown');
-  assert.deepEqual(commandFor('telegram', 'stop'), ['gateway', 'call', 'channels.stop', '--params', '{"channel":"telegram"}', '--json']);
+  assert.deepEqual(commandFor('telegram', 'stop', 'default'), ['gateway', 'call', 'channels.stop', '--params', '{"channel":"telegram","accountId":"default"}', '--json']);
   await assert.rejects(integrations.action('telegram', 'send'), /Unsupported/);
   await assert.rejects(integrations.action('__proto__', 'status'), /Unsupported/);
   assert.equal(classify({ code: 1, output: 'token mismatch' }), 'auth_error');
@@ -129,4 +129,25 @@ test('HTTP protects Host, Origin, CSRF and confines static file access', async t
   assert.equal((await request('/api/state')).body.summary.totalTokens, 123);
   await request('/api/state');
   assert.equal(collections, 1);
+});
+
+test('HTTP preserves Azerbaijani UTF-8 split across network chunks and surfaces registry warnings', async t => {
+  const {directory}=fixture(t,'');
+  let received;
+  const experts={list:()=>[],warnings:()=>['Registry needs repair']};
+  const jobs={agents:()=>[],list:()=>[],shutdown:()=>{},start:input=>{received=input;return {id:'test'};}};
+  const server=createServer({workspace:directory,experts,jobs,integrationOptions:{command:null},collectTelemetry:async()=>({sessions:[],summary:{},warnings:[]})});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>{server.closeAllConnections();return new Promise(resolve=>server.close(resolve));});
+  const port=server.address().port;
+  const base=`http://127.0.0.1:${port}`;
+  const {token}=await (await fetch(base+'/api/bootstrap')).json();
+  const payload=Buffer.from(JSON.stringify({prompt:'Azərbaycan'}));
+  const split=payload.indexOf(Buffer.from('ə'))+1;
+  const code=await new Promise((resolve,reject)=>{
+    const req=http.request({hostname:'127.0.0.1',port,path:'/api/jobs',method:'POST',headers:{'content-type':'application/json','x-route3-token':token}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));});
+    req.on('error',reject);req.write(payload.subarray(0,split));setTimeout(()=>req.end(payload.subarray(split)),15);
+  });
+  assert.equal(code,202);assert.equal(received.prompt,'Azərbaycan');
+  assert.deepEqual((await (await fetch(base+'/api/state')).json()).warnings,['Registry needs repair']);
 });

@@ -119,3 +119,36 @@ test('expert endpoints enforce tokens, validation and built-in protection', asyn
   assert.equal((await request('/api/experts/x-missing', { method: 'DELETE', headers })).status, 404);
   assert.equal((await request('/api/experts/x-missing', { method: 'DELETE' })).status, 403);
 });
+
+test('corrupted expert storage preserves last known entries and refuses overwriting the file', t => {
+  const home=temporaryHome(t),registry=new ExpertRegistry({home});
+  const created=registry.create({label:'Expert',brief:'Keep the working configuration intact.'});
+  const file=registry.file;
+  fs.writeFileSync(file,'{"broken":');
+  assert.ok(registry.list().some(e=>e.id===created.id));
+  assert.equal(registry.warnings().length,1);
+  assert.throws(()=>registry.create({label:'Another',brief:'Do not overwrite a corrupt registry.'}),/could not be read/);
+  assert.equal(fs.readFileSync(file,'utf8'),'{"broken":');
+  assert.equal(fs.existsSync(file+'.lock'),false);
+});
+
+test('two registry instances preserve each other’s additions and deletions', t => {
+  const home=temporaryHome(t),one=new ExpertRegistry({home}),two=new ExpertRegistry({home});
+  const a=one.create({label:'First',brief:'First specialist instructions.'});
+  const b=two.create({label:'Second',brief:'Second specialist instructions.'});
+  assert.ok(one.find(b.id));assert.ok(two.find(a.id));
+  one.remove(a.id);
+  two.create({label:'Third',brief:'Third specialist instructions.'});
+  assert.equal(new ExpertRegistry({home}).find(a.id),null);
+  assert.equal(one.list().filter(e=>e.custom).length,2);
+});
+
+test('exclusive expert lock rejects another writer without losing the registry', t => {
+  const home=temporaryHome(t),registry=new ExpertRegistry({home});
+  registry.create({label:'Existing',brief:'Keep this entry during concurrent writes.'});
+  const before=fs.readFileSync(registry.file,'utf8');
+  fs.writeFileSync(registry.file+'.lock','other writer');
+  assert.throws(()=>registry.create({label:'Blocked',brief:'Do not replace another writer’s lock.'}),/locked by another writer/);
+  assert.equal(fs.readFileSync(registry.file,'utf8'),before);
+  assert.equal(fs.readFileSync(registry.file+'.lock','utf8'),'other writer');
+});

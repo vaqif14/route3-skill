@@ -1,17 +1,13 @@
 #!/bin/bash
-# Builds the native Route3 Control.app (AppKit + WebKit, single Swift source).
-# Requirements: Apple command line developer tools (swiftc), macOS 11+.
+# Build and validate before replacing a working Route3 application.
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SOURCE="$ROOT/control-center/mac/Route3Control.swift"
 APP_NAME="Route3 Control.app"
 EXECUTABLE="Route3 Control"
-BUNDLE_ID="az.itinnovations.route3.control"
-VERSION="$(node -p "require('$ROOT/package.json').version" 2>/dev/null || echo 2.0.0)"
-OUTPUT=""
+OUTPUT="${HOME}/Applications"
 OPEN=0
-
+CHECK=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output) OUTPUT="${2:?--output requires a directory}"; shift 2 ;;
@@ -21,52 +17,42 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
-OUTPUT="${OUTPUT:-$HOME/Applications}"
-
-if [[ "${CHECK:-0}" == 1 ]]; then
-  command -v swiftc >/dev/null || { echo "swiftc not found. Install Apple's command line developer tools." >&2; exit 1; }
-  [[ -f "$SOURCE" ]] || { echo "Missing Swift source: $SOURCE" >&2; exit 1; }
+command -v swiftc >/dev/null || { echo "Install Apple's command line developer tools to build Route3." >&2; exit 1; }
+command -v node >/dev/null || { echo "Node.js is required to build Route3." >&2; exit 1; }
+[[ -f "$SOURCE" ]] || { echo "Missing Swift source: $SOURCE" >&2; exit 1; }
+if [[ "$CHECK" == 1 ]]; then
   echo "swiftc: $(command -v swiftc); source: $SOURCE; output: $OUTPUT/$APP_NAME"
   exit 0
 fi
-
-command -v swiftc >/dev/null || { echo "swiftc not found. Install Apple's command line developer tools (xcode-select --install)." >&2; exit 1; }
-[[ -f "$SOURCE" ]] || { echo "Missing Swift source: $SOURCE" >&2; exit 1; }
 mkdir -p "$OUTPUT"
-rm -rf "$OUTPUT/$APP_NAME"
-mkdir -p "$OUTPUT/$APP_NAME/Contents/MacOS" "$OUTPUT/$APP_NAME/Contents/Resources"
-
+STAGE="$(mktemp -d "$OUTPUT/.route3-build.XXXXXX")"
+trap 'rm -rf "$STAGE"' EXIT
+BUNDLE="$STAGE/$APP_NAME"
+mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 echo "Compiling $EXECUTABLE..."
-swiftc -O -framework AppKit -framework WebKit \
-  -o "$OUTPUT/$APP_NAME/Contents/MacOS/$EXECUTABLE" \
-  "$SOURCE"
-
-echo "Writing bundle metadata..."
-cat > "$OUTPUT/$APP_NAME/Contents/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleName</key><string>Route3 Control</string>
-  <key>CFBundleDisplayName</key><string>Route3 Control</string>
-  <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
-  <key>CFBundleExecutable</key><string>$EXECUTABLE</string>
-  <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>$VERSION</string>
-  <key>CFBundleVersion</key><string>$VERSION</string>
-  <key>LSMinimumSystemVersion</key><string>11.0</string>
-  <key>NSHighResolutionCapable</key><true/>
-  <key>NSAppTransportSecurity</key>
-  <dict><key>NSAllowsLocalNetworking</key><true/></dict>
-  <key>ROUTE3ServerJSPath</key><string>$ROOT/control-center/server.js</string>
-  <key>ROUTE3Port</key><string>43173</string>
-</dict>
-</plist>
-PLIST
-
-if command -v codesign >/dev/null; then
-  codesign --force --sign - "$OUTPUT/$APP_NAME" >/dev/null 2>&1 || echo "Note: ad-hoc code signing was skipped."
+swiftc -O -framework AppKit -framework WebKit -o "$BUNDLE/Contents/MacOS/$EXECUTABLE" "$SOURCE"
+"$BUNDLE/Contents/MacOS/$EXECUTABLE" --self-test
+node - "$ROOT" "$BUNDLE/Contents/Info.plist" <<'JS'
+const fs=require('node:fs'),path=require('node:path');
+const [root,file]=process.argv.slice(2);
+const version=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version;
+const xml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+const fields={CFBundleName:'Route3 Control',CFBundleDisplayName:'Route3 Control',CFBundleIdentifier:'az.itinnovations.route3.control',CFBundleExecutable:'Route3 Control',CFBundlePackageType:'APPL',CFBundleShortVersionString:version,CFBundleVersion:version,LSMinimumSystemVersion:'11.0',ROUTE3ServerJSPath:path.join(root,'control-center/server.js'),ROUTE3Port:'43173'};
+fs.writeFileSync(file,`<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>${Object.entries(fields).map(([k,v])=>`<key>${k}</key><string>${xml(v)}</string>`).join('')}<key>NSHighResolutionCapable</key><true/><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>\n`);
+JS
+plutil -lint "$BUNDLE/Contents/Info.plist"
+codesign --force --sign - "$BUNDLE"
+codesign --verify "$BUNDLE"
+BACKUP=""
+if [[ -e "$OUTPUT/$APP_NAME" || -L "$OUTPUT/$APP_NAME" ]]; then
+  mkdir -p "$OUTPUT/.route3-backups"
+  BACKUP="$OUTPUT/.route3-backups/Route3-$(date +%Y%m%dT%H%M%S)-$$.app"
+  mv "$OUTPUT/$APP_NAME" "$BACKUP"
 fi
-
+if ! mv "$BUNDLE" "$OUTPUT/$APP_NAME"; then
+  [[ -z "$BACKUP" ]] || mv "$BACKUP" "$OUTPUT/$APP_NAME"
+  exit 1
+fi
 echo "Built $OUTPUT/$APP_NAME"
+[[ -z "$BACKUP" ]] || echo "Previous app: $BACKUP"
 if [[ "$OPEN" == 1 ]]; then open "$OUTPUT/$APP_NAME"; fi
