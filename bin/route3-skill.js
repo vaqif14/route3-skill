@@ -69,6 +69,7 @@ function help(){console.log(`Route3 — measured agent orchestration and Mac con
   route3-skill uninstall [--all]      Move installed skills into recovery backups
   route3-skill center                 Start local control center
   route3-skill mac                    Build/install the native Mac app
+  route3-skill service install|status|uninstall [--workspace PATH]
   route3-skill sessions [--cwd PATH] [--session ID]
   route3-skill help
 
@@ -76,6 +77,7 @@ Existing installs are backed up and local additions preserved. Model credentials
 remain with their own CLIs. No paid model probes run during installation.`);}
 function main(argv=process.argv.slice(2)){
  const command=argv[0]||'help';
+ if(command==='service')return run(process.execPath,[path.join(ROOT,'control-center/background-service.js'),...argv.slice(1)]);
  if(command==='center')return run(process.execPath,[path.join(ROOT,'control-center/server.js'),...argv.slice(1)]);
  if(command==='sessions')return run(process.execPath,[path.join(ROOT,'skill/scripts/session-budget.js'),'status',...argv.slice(1)]);
  if(command==='mac')return run('/bin/bash',[path.join(ROOT,'control-center/mac/build.sh'),...argv.slice(1)]);

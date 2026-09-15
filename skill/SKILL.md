@@ -104,6 +104,7 @@ clearly replaces or cancels it.
 | Session usage, compact, checkpoint | `references/session-governor.md` |
 | Expert selection, ownership, bounded briefs | `references/efficient-dispatch.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |
+| Telegram remote tasks, pairing, background service | `references/remote-telegram.md` |
 | Repository symbol map | `references/context-engine.md` |
 | Explicit artifact factory / legacy run | `references/factory-contract.md` |
 | UI / product checks | `references/product-engineering.md` |

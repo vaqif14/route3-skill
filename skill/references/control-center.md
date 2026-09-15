@@ -1,7 +1,7 @@
 # Route3 Control Center
 
 The native Mac app wraps a local web interface backed by dependency-free Node.
-No account credentials are copied into Route3. Provider CLIs retain their own
+Provider credentials are not copied into Route3. Provider CLIs retain their own
 login, permission policies and model configuration.
 
 From the Route3 package:
@@ -55,3 +55,11 @@ mutation tokens. Do not expose it through a public tunnel or disable those check
 Use the chosen project workspace for agent execution; any broader permissions
 remain subject to the agent's configured policy. Quitting the app must not stop
 an independently running server or unrelated gateway.
+
+## Continue from Telegram
+
+Use [remote-telegram.md](remote-telegram.md) for the dedicated paired bot and
+macOS background service. This bridge stores its own locally entered bot token
+privately; it does not import or modify OpenClaw credentials. Pairing explicitly
+authorizes task replies and approval requests to the paired private account.
+Each remote command remains subject to the project's provider policies.

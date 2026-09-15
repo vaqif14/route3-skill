@@ -58,6 +58,34 @@ not account billing. Tail-only logs are labeled partial; no prices or savings
 percentages are invented. The panel does **not** pretend it can compact another
 application's active conversation. It recommends and supports a durable handoff.
 
+## Continue from Telegram
+
+Build/install Route3, then enable the background service for your project:
+
+```bash
+node bin/route3-skill.js install --all
+node bin/route3-skill.js service install --workspace /path/to/project
+node bin/route3-skill.js service status
+```
+
+Close an existing foreground Route3 server before installing the service. Open
+**Route3 Control → Telegram ilə davam et**, create a dedicated bot with
+**@BotFather → /newbot**, and paste its token into the local password field.
+Start the connection, generate a pairing code, and send the shown `/pair` command
+to that bot's private chat. Never paste the token into an AI conversation.
+
+Use `/run <task>`, `/jobs`, `/watch <job-id>`, `/continue <job-id> <instruction>`,
+`/cancel <job-id>` and `/status`. `/watch` adopts a panel job and renews expired
+approval buttons. `/continue` starts a new provider session with a bounded handoff;
+it cannot attach to this ChatGPT conversation or resume an arbitrary host session.
+Provider authentication, model configuration and approval policies still apply.
+
+The service starts at login and runs after the Mac app closes. The Mac must remain
+awake, logged in and online; sleep pauses connectivity. No router port forwarding
+or public web server is required. Use `service uninstall` to stop/remove the
+LaunchAgent while retaining bot configuration and job history. See
+[remote operation and recovery](skill/references/remote-telegram.md).
+
 ## Checkpoint before compact
 
 ```bash
@@ -87,7 +115,8 @@ The [skill entrypoint](skill/SKILL.md) defines the current operating contract.
 The control server binds to loopback and checks Host, Origin and a mutation token.
 It uses fixed executable/argument definitions, bounds concurrency and output, and
 terminates only jobs it owns. It does not expose an arbitrary shell endpoint or
-copy bot credentials. A local application is not a multi-user remote service.
+import existing bot credentials. A dedicated Telegram token is entered locally and
+stored privately for the paired remote bridge.
 
 ## Verification
 

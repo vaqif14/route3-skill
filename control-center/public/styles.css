@@ -24,3 +24,15 @@
 .expert-row:first-child{border-top:0;padding-top:0}
 .expert-row-side{display:flex;gap:9px;align-items:center;flex-shrink:0}
 @media(max-width:1100px){.expert-layout{grid-template-columns:1fr!important}}
+
+.telegram-layout { align-items:start; margin-bottom:20px; }
+.telegram-layout form { display:grid; gap:10px; margin-top:18px; }
+.telegram-layout input { width:100%; min-width:0; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:inherit; }
+.telegram-commands { display:grid; gap:16px; }
+.telegram-commands div { display:grid; grid-template-columns:minmax(180px,1fr) 2fr; gap:16px; }
+.telegram-commands dd { margin:0; }
+.telegram-pairing { margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:12px; overflow-wrap:anywhere; user-select:text; }
+#telegram-remote-state code { overflow-wrap:anywhere; }
+@media(max-width:700px) { .telegram-commands div { grid-template-columns:1fr; gap:6px; } }
+
+#telegram-message { color:var(--muted); }

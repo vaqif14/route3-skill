@@ -8,7 +8,7 @@ function redact(value) {
     .replace(/(-----BEGIN [^-]*PRIVATE KEY-----)[\s\S]*?(-----END [^-]*PRIVATE KEY-----|$)/g, '[REDACTED PRIVATE KEY]')
     .replace(/((?:["']?)(?:[\w.-]*(?:token|password|secret|api[_-]?key|authorization|cookie)[\w.-]*)(?:["']?)\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,;}]+)/gi, '$1[REDACTED]')
     .replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9+/=_\-.]+/gi, '[REDACTED AUTH]')
-    .replace(/\b\d{6,12}:[A-Za-z0-9_-]{20,}\b/g, '[REDACTED TELEGRAM TOKEN]')
+    .replace(/\b\d{5,16}:[A-Za-z0-9_-]{20,}\b/g, '[REDACTED TELEGRAM TOKEN]')
     .replace(/\b(?:sk-|sk-ant-|ghp_|github_pat_)[A-Za-z0-9_-]{12,}/g, '[REDACTED KEY]')
     .replace(/(https?:\/\/)[^\s/@]+:[^\s/@]+@/gi, '$1[REDACTED]@');
 }

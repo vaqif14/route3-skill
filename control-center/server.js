@@ -10,6 +10,7 @@ const { equalToken } = require('./security');
 const { JobManager } = require('./process-manager');
 const { Integrations } = require('./integrations');
 const { ExpertRegistry } = require('./experts');
+const { TelegramBridge } = require('./telegram-bridge');
 
 const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
 
@@ -47,7 +48,8 @@ function createServer(options = {}) {
   const workspace = fs.realpathSync(options.workspace || process.env.ROUTE3_WORKSPACE || process.cwd());
   if (!fs.statSync(workspace).isDirectory()) throw new Error('Workspace must be a directory.');
   const experts = options.experts || new ExpertRegistry({ home: options.home });
-  const jobs = options.jobs || new JobManager({ workspace, experts, ...options.jobOptions });
+  const jobs = options.jobs || new JobManager({ workspace, experts, ...(options.persistJobs ? { historyFile: path.join(options.home || os.homedir(), `.local/share/route3/history/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}), ...options.jobOptions });
+  const telegram = options.telegramBridge || new TelegramBridge({ jobs, home: options.home, workspace });
   const integrations = options.integrations || new Integrations(options.integrationOptions);
   const telemetry = options.collectTelemetry || (args => require('./telemetry').collectTelemetry(args));
   const publicDir = options.publicDir || path.join(__dirname, 'public');
@@ -86,7 +88,7 @@ function createServer(options = {}) {
         if (pathname === '/api/state') {
           const data = await collect();
           const expertList = experts.list();
-          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || [])], agents: jobs.agents(), experts: expertList, jobs: jobs.list(), integrations: integrations.snapshot(), workspace, generatedAt: new Date().toISOString() });
+          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || []), ...(jobs.historyWarning ? [jobs.historyWarning] : [])], agents: jobs.agents(), experts: expertList, jobs: jobs.list(), integrations: integrations.snapshot(), telegramRemote: telegram.snapshot(), backgroundService: Boolean(process.env.ROUTE3_BACKGROUND_SERVICE), workspace, generatedAt: new Date().toISOString() });
         }
         if (Object.hasOwn(STATIC, pathname)) {
           const [file, type] = STATIC[pathname];
@@ -107,6 +109,14 @@ function createServer(options = {}) {
       }
       if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] || '')) return json(response, 415, { error: 'Use application/json.' });
       const body = await readJSON(request);
+      const telegramAction = /^\/api\/telegram\/(configure|start|stop|pairing|unpair|disconnect)$/.exec(pathname);
+      if (telegramAction) {
+        const action = telegramAction[1];
+        if (action === 'pairing') return json(response, 200, { pairing: await telegram.pairing() });
+        if (action === 'configure') await telegram.configure({ token: body.token, enabled: false });
+        else await telegram[action]();
+        return json(response, 200, { telegramRemote: telegram.snapshot() });
+      }
       if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(body) });
       if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(body) });
       const cancel = /^\/api\/jobs\/([0-9a-f-]{36})\/cancel$/.exec(pathname);
@@ -122,8 +132,16 @@ function createServer(options = {}) {
   });
   server.requestTimeout = 30000;
   server.headersTimeout = 10000;
-  server.on('close', () => jobs.shutdown());
-  server.route3 = { jobs, integrations, workspace, shutdown: () => jobs.shutdown() };
+  let stopping;
+  const shutdown = () => {
+    if (!stopping) { jobs.shutdown(); stopping = Promise.resolve().then(() => telegram.shutdown()); }
+    return stopping;
+  };
+  server.on('listening', () => {
+    if (options.startTelegram === true && telegram.snapshot().enabled) Promise.resolve().then(() => telegram.start()).catch(() => {});
+  });
+  server.on('close', () => { shutdown().catch(() => {}); });
+  server.route3 = { jobs, integrations, telegram, workspace, shutdown };
   return server;
 }
 
@@ -139,12 +157,12 @@ if (require.main === module) {
   }
   if (!Number.isInteger(port) || port < 1 || port > 65535) { console.error('Port must be an integer from 1 to 65535.'); process.exit(1); }
   let server;
-  try { server = createServer({ workspace }); }
-  catch { console.error('Workspace must be an existing directory.'); process.exit(1); }
+  try { server = createServer({ workspace, persistJobs: true, startTelegram: true }); }
+  catch { console.error('Route3 cannot initialize its workspace or private local state. Check paths and file permissions.'); process.exit(1); }
   server.on('error', error => { console.error(error.code === 'EADDRINUSE' ? 'Route3 port is in use. Select another port with --port.' : 'Route3 could not start its localhost server.'); process.exitCode = 1; });
-  server.listen(port, '127.0.0.1', () => console.log(`Route3 Control Center: http://127.0.0.1:${port}\nJob history is kept in memory for this server session.`));
+  server.listen(port, '127.0.0.1', () => console.log(`Route3 Control Center: http://127.0.0.1:${port}\nPrivate job history is retained locally. Telegram resumes only when enabled.`));
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {
-    server.route3.shutdown();
+    server.route3.shutdown().catch(() => {});
     server.close();
     server.closeIdleConnections?.();
     setTimeout(() => process.exit(0), 4000).unref();

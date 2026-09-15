@@ -1,3 +1,12 @@
+# 2.1.0 — Continue from Telegram
+
+- Add a dedicated Telegram bot bridge with private local credentials, expiring one-use pairing, exact private-chat authorization and project binding.
+- Run, watch, continue and cancel Route3 jobs remotely; forward ACP approval options using expiring, identity-bound callback handles.
+- Reconnect after network failures with bounded backoff; stop on invalid credentials or competing pollers without modifying existing webhooks or OpenClaw channels.
+- Persist update offsets before job dispatch and retain bounded private job handoffs across restarts. Interrupted jobs never rerun automatically.
+- Add the Mac Telegram setup view and a per-user LaunchAgent CLI so closing the app does not stop the background service.
+- Verify remote authorization, replay handling, recovery, API boundaries, LaunchAgent rollback, and desktop/mobile setup using fixtures.
+
 # 2.0.1 — Reliability fixes after expert panel review
 
 - Preserve custom experts on corrupt storage and serialize writes across panel instances.

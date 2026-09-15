@@ -1,6 +1,6 @@
 {
   "name": "route3-skill",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Route3: measured session supervision, efficient expert dispatch, and a native Mac control center for agents, OpenClaw, browser and Telegram.",
   "main": "bin/route3-skill.js",
   "bin": {

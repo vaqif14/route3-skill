@@ -21,6 +21,7 @@
       <button class="nav-button" data-view="experts"><span aria-hidden="true">◈</span>Ekspertlər <span class="nav-count" id="expert-count">—</span></button>
       <button class="nav-button" data-view="jobs"><span aria-hidden="true">≡</span>Tapşırıqlar <span class="nav-count" id="job-count">—</span></button>
       <button class="nav-button" data-view="integrations"><span aria-hidden="true">⌘</span>İnteqrasiyalar</button>
+      <button class="nav-button" data-view="telegram"><span aria-hidden="true">↗</span>Telegram ilə davam et</button>
     </nav>
     <div class="sidebar-bottom"><div class="connection"><span class="dot" id="connection-dot"></span><span id="connection-label">Qoşulur…</span></div><p>Bu Mac üzərində lokal idarəetmə</p><label class="theme-control" for="theme">Görünüş<select id="theme"><option value="system">Sistem</option><option value="light">Açıq</option><option value="dark">Tünd</option></select></label></div>
   </aside>
@@ -65,6 +66,29 @@
       </section>
       <section class="view" id="view-jobs" aria-labelledby="jobs-heading" hidden><div class="page-heading"><div><p class="eyebrow">İCRA VƏ ÇIXIŞ</p><h1 id="jobs-heading">Tapşırıqlar</h1><p>Bu idarəetmə mərkəzindən başladılmış agentlərin vəziyyəti.</p></div><button class="primary" data-go="launch">Yeni tapşırıq ↗</button></div><div id="jobs-list"><div class="empty">Tapşırıqlar yüklənir…</div></div></section>
       <section class="view" id="view-integrations" aria-labelledby="integrations-heading" hidden><div class="page-heading"><div><p class="eyebrow">LOKAL XİDMƏTLƏR</p><h1 id="integrations-heading">İnteqrasiyalar</h1><p>OpenClaw, brauzer və Telegram bağlantısını idarə edin.</p></div></div><div class="integration-grid" id="integrations-list"><div class="empty">Xidmətlər yoxlanılır…</div></div><p class="footnote">İcra edilə bilən əməliyyatlar bu Mac-dəki quraşdırma və xidmət imkanlarına əsasən göstərilir.</p></section>
+      <section class="view" id="view-telegram" aria-labelledby="telegram-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">UZAQDAN DAVAM ET</p><h1 id="telegram-heading">Mac-dəki iş, Telegram-da.</h1><p>Bu Mac oyaq və internetə bağlı olduqda tapşırıq başladın, davam etdirin və nəticəsini izləyin.</p></div></div>
+        <div class="overview-grid telegram-layout">
+          <article class="panel"><div class="panel-heading"><div><h2>1. Route3 botunu qoş</h2><p>Bu bağlantı üçün ayrıca bot yaradın.</p></div><span class="badge">Şəxsi bot</span></div>
+            <p>Telegram-da <strong>@BotFather</strong> açın, <code>/newbot</code> göndərin və aldığınız tokeni aşağıya daxil edin. OpenClaw və ya başqa xidmətin istifadə etdiyi bot tokenini paylaşmayın.</p>
+            <form id="telegram-form" autocomplete="off">
+              <label for="telegram-token">Bot tokeni</label><input id="telegram-token" name="route3-bot-credential" type="password" required autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="256" placeholder="BotFather-dən alınan token">
+              <p class="field-help">Token yalnız bu Mac-də saxlanır. Brauzer yaddaşına yazılmır və status cavabında qaytarılmır.</p>
+              <div class="form-footer"><span class="muted">Qoşulan bot dəyişəndə əvvəlki cütləşmə silinir.</span><button class="primary" id="telegram-configure" type="submit">Tokeni yoxla və saxla</button></div>
+            </form>
+            <p id="telegram-message" class="form-status" role="status"></p>
+          </article>
+          <article class="panel"><div class="panel-heading"><div><h2>2. Öz Telegram hesabını cütləşdir</h2><p>Yalnız cütləşdirilmiş şəxsi hesab tapşırıq verə bilər.</p></div></div>
+            <div id="telegram-remote-state" aria-live="polite"><p class="muted">Bağlantı yoxlanılır…</p></div>
+            <div class="integration-actions"><button class="secondary" data-telegram-action="start" disabled>Bağlantını başlat</button><button class="secondary" data-telegram-action="stop" disabled>Dayandır</button><button class="secondary" data-telegram-action="pairing" disabled>Cütləşmə kodu yarat</button><button class="secondary danger" data-telegram-action="unpair" disabled>Hesabı ayır</button><button class="secondary danger" data-telegram-action="disconnect" disabled>Tokeni sil</button></div>
+            <div id="telegram-pairing" class="telegram-pairing" role="status" hidden></div>
+          </article>
+        </div>
+        <article class="panel"><div class="panel-heading"><div><h2>3. Telefonda işi idarə et</h2><p>Əmrləri cütləşdirdiyiniz botun şəxsi söhbətinə yazın.</p></div></div>
+          <dl class="telegram-commands"><div><dt><code>/run tapşırıq</code></dt><dd>Route3 uyğun agent seçib bu layihədə yeni iş başladır.</dd></div><div><dt><code>/continue iş-id təlimat</code></dt><dd>Əvvəlki işin qısa xülasəsi ilə yeni agent sessiyası başladır.</dd></div><div><dt><code>/watch iş-id</code></dt><dd>Mac-də başladılmış işin nəticə və icazələrini telefonda izləyir.</dd></div><div><dt><code>/status</code></dt><dd>Bağlantı və agentlərin vəziyyətini göstərir.</dd></div><div><dt><code>/jobs</code></dt><dd>İşlərin identifikatorlarını və vəziyyətini göstərir.</dd></div><div><dt><code>/cancel iş-id</code></dt><dd>Seçilmiş işi dayandırır.</dd></div></dl>
+          <p class="footnote">Mac yuxuya gedəndə və ya internet kəsiləndə bağlantı dayanır. Fon xidməti quraşdırılıbsa, giriş etdikdən sonra avtomatik başlayır. Terminalda <code>route3-skill service status</code> ilə yoxlayın. Bu Route3 bağlantısı İnteqrasiyalar bölməsindəki OpenClaw Telegram kanalından ayrıdır.</p>
+        </article>
+      </section>
     </main>
   </div>
   <div id="toast" class="toast" role="status" hidden></div>

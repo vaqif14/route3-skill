@@ -55,7 +55,8 @@ argv arrays and never a client-supplied shell string. Jobs have a concurrency ca
 output cap, timeout and owned-process cancellation. Logs are redacted before
 return. Provider authentication stays with each provider; the control center does
 not change approval policies. Integration actions are limited to implemented
-lifecycle/status operations, not arbitrary gateway RPC or Telegram messaging.
+lifecycle/status operations, not arbitrary gateway RPC. The dedicated Telegram
+bridge accepts only paired private-chat commands; it does not use gateway tokens.
 
 ## Recovery
 
@@ -77,3 +78,28 @@ They verify accounting and safety invariants without spending model tokens or
 changing a live gateway. Native app compilation and a browser interaction smoke
 check validate delivery separately. Successful fixture tests do not prove a
 provider account has valid credentials or sufficient quota.
+
+## Telegram and background runtime
+
+`telegram-bridge.js` long-polls Telegram over outbound HTTPS. The local panel
+validates credentials and issues expiring random pairing codes. A paired user ID,
+private chat ID and configured workspace form the remote authority boundary.
+Update offsets persist before dispatch, giving at-most-once command execution:
+a crash between receipt and dispatch can drop a command, but cannot replay it.
+Replies can duplicate when delivery succeeds but saving its receipt fails.
+
+Only remotely started or explicitly watched jobs produce proactive notifications.
+ACP callbacks carry opaque handles bound to the exact job, request, offered option,
+user and chat. Their 10-minute lifetime and live-request validation reject replay.
+Transient network failures retry with bounded backoff; token and competing-poller
+errors halt polling. Another instance's poller lock prevents configuration writes.
+
+`job-history.js` stores at most 100 jobs, bounded redacted briefs and log tails in
+private per-workspace files. Active jobs restore as interrupted, with no pending
+permissions or automatic rerun. Continuation uses a new session and a bounded
+handoff. CLI servers opt into persistence; test servers do not unless requested.
+
+`background-service.js` installs only the user's named LaunchAgent, using fixed
+argv and an explicit runtime PATH. The server remains on 127.0.0.1. RunAtLoad and
+KeepAlive support login and process recovery; Mac sleep still suspends the bridge.
+The native app attaches to this independent server and leaves it running on quit.
