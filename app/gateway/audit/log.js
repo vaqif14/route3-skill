@@ -16,10 +16,16 @@ const SENSITIVE_KEY = /token|password|secret|api[_-]?key|authorization|cookie|si
 // Redact by key and by value. redact() is applied to strings individually —
 // never to a serialized object, because it would break the JSON.
 function scrub(value) {
+  // A function isn't cloneable: appendAudit's structuredClone would throw
+  // DataCloneError on it, failing an otherwise-valid audit append.
+  if (typeof value === 'function') return '[FUNCTION]';
   if (typeof value === 'string') return redact(value);
   if (Array.isArray(value)) return value.map(scrub);
   if (value && typeof value === 'object') {
-    const out = {};
+    // Object.create(null), not {}: a metadata key literally named "__proto__"
+    // would otherwise hit the Object.prototype accessor instead of becoming
+    // an own property, silently dropping that field from an append-only record.
+    const out = Object.create(null);
     for (const [key, item] of Object.entries(value)) {
       out[key] = SENSITIVE_KEY.test(key) ? '[REDACTED]' : scrub(item);
     }

@@ -95,3 +95,27 @@ test('the audit log exposes no update or delete', () => {
   assert.equal(store.updateAudit, undefined);
   assert.equal(store.deleteAudit, undefined);
 });
+
+test('redaction is not defeated by an attacker-supplied [REDACTED prefix', () => {
+  const { redact } = require('../../control-center/security');
+  assert.doesNotMatch(redact('authorization=[REDACTEDz]ghs_realtoken123456'), /ghs_realtoken123456/);
+  assert.doesNotMatch(redact('authorization: Bearer ghs_abcdefghijklmnopqrst'), /ghs_abcdefghijklmnopqrst/);
+});
+
+test('an audit metadata key named __proto__ is preserved, not swallowed', async () => {
+  const store = createMemoryStore();
+  const audit = createAuditLog(store);
+  await audit.append({ type: 'JOB_CREATED', actor: 'gateway', jobId: 'R3-1', metadata: JSON.parse('{"__proto__":"x","keep":1}') });
+  const [event] = await store.listAudit({ jobId: 'R3-1' });
+  assert.equal(event.metadata.keep, 1);
+  assert.equal(Object.hasOwn(event.metadata, '__proto__'), true);
+});
+
+test('a function in audit metadata does not break the append', async () => {
+  const store = createMemoryStore();
+  const audit = createAuditLog(store);
+  await audit.append({ type: 'JOB_CREATED', actor: 'gateway', jobId: 'R3-2', metadata: { cb: () => {}, n: 2 } });
+  const [event] = await store.listAudit({ jobId: 'R3-2' });
+  assert.equal(event.metadata.cb, '[FUNCTION]');
+  assert.equal(event.metadata.n, 2);
+});
