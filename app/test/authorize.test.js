@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { authorize } = require('../gateway/auth/authorize');
+const { authorize, reject, REJECTIONS } = require('../gateway/auth/authorize');
 const { createMemoryStore } = require('../gateway/jobs/store.memory');
 const { parseCommand } = require('../gateway/commands/grammar');
 const { normalize } = require('../gateway/github/events');
@@ -60,6 +60,7 @@ test('an installation outside the private-beta allowlist is policy-rejected', as
 test('an empty allowlist enables nobody', async () => {
   const decision = await run(await seed(), fakeClient(), '/route3 review', new Set());
   assert.equal(decision.ok, false);
+  assert.equal(decision.reason, 'installation_disabled');
 });
 
 test('a repository owned by another installation is rejected before any actor lookup', async () => {
@@ -110,4 +111,48 @@ test('a disabled command short-circuits before the GitHub call', async () => {
   const decision = await run(store, client, '/route3 review');
   assert.equal(decision.reason, 'command_disabled');
   assert.equal(client.calls.length, 0);
+});
+
+test('a suspended installation is rejected before any GitHub call', async () => {
+  const store = await seed();
+  await store.upsertInstallation({ id: 1001, suspendedAt: '2026-01-01T00:00:00.000Z' });
+  const client = fakeClient('admin');
+  const decision = await run(store, client, '/route3 help');
+  assert.equal(decision.reason, 'installation_suspended');
+  assert.equal(decision.failureCode, 'AUTH_REJECTED');
+  assert.equal(client.calls.length, 0);
+});
+
+test('an unknown repository is rejected before any GitHub call', async () => {
+  const store = createMemoryStore();
+  await store.upsertInstallation({ id: 1001, accountLogin: 'vaqif14', accountType: 'User', enabled: true, suspendedAt: null });
+  const client = fakeClient('admin');
+  const decision = await run(store, client, '/route3 help');
+  assert.equal(decision.reason, 'repository_unknown');
+  assert.equal(client.calls.length, 0);
+});
+
+test('reject() refuses to invent a message for an unknown reason', () => {
+  assert.throws(() => reject('made_up_reason'), /Unknown rejection reason/);
+  for (const entry of Object.values(REJECTIONS)) {
+    assert.ok(entry.failureCode, 'every rejection carries a failure code');
+    assert.ok(entry.message, 'every rejection carries a message');
+  }
+});
+
+test('a repository is disabled unless explicitly enabled', async () => {
+  for (const enabled of [false, 'false', 0, null, undefined]) {
+    const store = await seed();
+    await store.upsertRepository({ id: 5001, enabled });
+    const decision = await run(store, fakeClient('admin'), '/route3 help');
+    assert.equal(decision.reason, 'repository_disabled', `enabled: ${JSON.stringify(enabled)} must not grant access`);
+  }
+});
+
+test('identity comparisons survive a store that returns string ids', async () => {
+  const store = await seed();
+  await store.upsertInstallation({ id: 1001, accountLogin: 'vaqif14', accountType: 'User', enabled: true, suspendedAt: null });
+  await store.upsertRepository({ id: 5001, installationId: '1001', fullName: 'vaqif14/route3-e2e-fixture', defaultBranch: 'main', private: true, enabled: true });
+  const decision = await run(store, fakeClient('admin'), '/route3 help');
+  assert.equal(decision.ok, true, 'a BIGINT-as-string installationId must still match');
 });
