@@ -2278,6 +2278,10 @@ function createQueue({ store, audit, now = () => new Date().toISOString() }) {
   }
 
   async function advance(job, to, patch = {}) {
+    // There is one way to finish a job: succeed() or fail(). Reaching a terminal
+    // state through advance() would leave `terminal` false, and the coalesce
+    // lookup filters on that flag — such a job would absorb duplicates forever.
+    if (state.isTerminal(to)) throw new state.IllegalTransition(job.status, to);
     state.assertTransition(job.status, to);
     const updated = await apply(job, { status: to, ...patch }, to);
     await audit.append({
@@ -3345,6 +3349,13 @@ git commit -m "feat(gateway): wire the 16-step webhook pipeline behind a node:ht
 - Modify: `app/package.json` (add `pg`, point `start` at `gateway/main.js`)
 - Modify: `app/test/store.test.js` (add the shared contract call)
 - Test: `app/test/store.pg.test.js`
+
+**Requirements carried forward from earlier reviews — these are binding, not optional:**
+
+1. **Coalescing must be enforced by the database, not by the application.** The partial unique index `route3_job_coalesce` is the enforcement point. `createJob` inserts against it and catches the unique-violation (`23505`) internally, returning `{job, coalescedWith}` exactly as the in-memory store does. `queue.js` has no try/catch around `store.createJob` — if a unique violation escapes, an ordinary duplicate webhook rejects instead of coalescing. An `if (!exists) insert()` pattern is explicitly insufficient: two connections both pass the check before either inserts.
+2. **The state write and its audit append must be ONE transaction.** Today they are two statements, so a failing audit loses the event while the transition lands. Wrap `transitionJob` plus `appendAudit` in a single `BEGIN`/`COMMIT` so the audit trail cannot silently miss a transition that happened.
+3. **Identifier types must survive the round trip.** node-postgres returns `BIGINT` as a JavaScript string by default. `authorize.js` now coerces defensively, but the store should return `installation.id`, `repository.id` and `repository.installationId` as numbers so callers are not each responsible for coercion. Verify this explicitly — a string id silently breaks `Set.has` and any `Map` cache keyed on it.
+4. **Concurrency must be proven with genuinely parallel connections**, not sequential calls on one client. The in-memory store runs to completion without interleaving, so no test against it proves atomicity.
 
 **Interfaces:**
 - Consumes: the store contract (Task 5).
