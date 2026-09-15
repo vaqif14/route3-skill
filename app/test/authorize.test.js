@@ -156,3 +156,13 @@ test('identity comparisons survive a store that returns string ids', async () =>
   const decision = await run(store, fakeClient('admin'), '/route3 help');
   assert.equal(decision.ok, true, 'a BIGINT-as-string installationId must still match');
 });
+
+test('the verified installation id is what reaches the GitHub client', async () => {
+  const store = await seed();
+  const client = fakeClient('write');
+  const decision = await run(store, client, '/route3 review');
+  assert.equal(decision.ok, true);
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.calls[0].installationId, 1001);
+  assert.equal(typeof client.calls[0].installationId, 'number', 'a string id here would double the token cache');
+});

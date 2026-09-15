@@ -55,7 +55,9 @@ async function authorize({ store, client, normalized, ast, allowlist }) {
   });
   if (!policy.enabled) return reject('command_disabled');
 
-  const permission = await client.actorPermission(installation.id, repository.fullName, normalized.actor.login);
+  // The verified integer, not the store row's id: this value becomes the token
+  // cache key downstream, and a second call site would otherwise cache twice.
+  const permission = await client.actorPermission(installationId, repository.fullName, normalized.actor.login);
   if (rank(permission) < rank(policy.minimum)) {
     return reject('actor_permission', `Required: ${policy.minimum}. Yours: ${permission}.`);
   }
