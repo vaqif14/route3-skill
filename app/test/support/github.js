@@ -18,7 +18,7 @@ function recordingFetch(routes) {
     const path = String(url).replace('https://api.github.com', '');
     calls.push({ method, path, headers: options.headers || {}, body: options.body });
     const handler = routes[`${method} ${path}`];
-    if (!handler) return { ok: false, status: 404, async text() { return '{"message":"Not Found"}'; }, async json() { return { message: 'Not Found' }; } };
+    if (!handler) throw new Error(`recordingFetch: no route registered for ${method} ${path}`);
     const { status = 200, body = {} } = handler({ method, path, options });
     const text = JSON.stringify(body);
     return { ok: status >= 200 && status < 300, status, async text() { return text; }, async json() { return JSON.parse(text); } };

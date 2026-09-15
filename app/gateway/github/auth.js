@@ -24,11 +24,9 @@ function appJwt({ appId, privateKey, now = Date.now() }) {
 // Tokens live in memory only. They are never persisted, logged, or handed to a runner.
 function createInstallationTokens({ appId, privateKey, fetchImpl = fetch, now = () => Date.now(), apiBase = 'https://api.github.com' }) {
   const cache = new Map();
+  const inflight = new Map();
 
-  async function get(installationId) {
-    const cached = cache.get(installationId);
-    if (cached && cached.expiresAtMs - now() > REFRESH_MARGIN_MS) return cached.token;
-
+  async function mint(installationId) {
     const response = await fetchImpl(`${apiBase}/app/installations/${installationId}/access_tokens`, {
       method: 'POST',
       headers: {
@@ -49,6 +47,20 @@ function createInstallationTokens({ appId, privateKey, fetchImpl = fetch, now = 
     }
     cache.set(installationId, { token: body.token, expiresAtMs: Date.parse(body.expires_at) });
     return body.token;
+  }
+
+  async function get(installationId) {
+    const cached = cache.get(installationId);
+    if (cached && cached.expiresAtMs - now() > REFRESH_MARGIN_MS) return cached.token;
+    const existing = inflight.get(installationId);
+    if (existing) return existing;
+    const pending = mint(installationId);
+    inflight.set(installationId, pending);
+    try {
+      return await pending;
+    } finally {
+      inflight.delete(installationId);
+    }
   }
 
   return { get, forget: id => cache.delete(id), size: () => cache.size };
