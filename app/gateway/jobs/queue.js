@@ -45,6 +45,10 @@ function createQueue({ store, audit, now = () => new Date().toISOString() }) {
   }
 
   async function advance(job, to, patch = {}) {
+    // There is one way to finish a job: succeed() or fail(). Reaching a terminal
+    // state through advance() would leave `terminal` false, and the coalesce
+    // lookup filters on that flag — such a job would absorb duplicates forever.
+    if (state.isTerminal(to)) throw new state.IllegalTransition(job.status, to);
     state.assertTransition(job.status, to);
     const updated = await apply(job, { status: to, ...patch }, to);
     await audit.append({

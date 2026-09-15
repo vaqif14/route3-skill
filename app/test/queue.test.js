@@ -102,3 +102,27 @@ test('a queued job can be failed as RUNNER_UNAVAILABLE', async () => {
   assert.equal(failed.status, 'FAILED');
   assert.equal(failed.failureCode, 'RUNNER_UNAVAILABLE');
 });
+
+test('advance refuses a terminal target so there is one way to finish a job', async () => {
+  const { store, queue } = harness();
+  let { job } = await queue.create(request());
+  for (const next of ['AUTHENTICATED', 'AUTHORIZED', 'NORMALIZED', 'QUEUED', 'EXECUTING', 'READY_TO_PUBLISH', 'PUBLISHING']) {
+    job = await queue.advance(job, next);
+  }
+  await assert.rejects(() => queue.advance(job, 'SUCCEEDED'), IllegalTransition);
+  assert.equal((await store.getJob(job.id)).terminal, false, 'the refused advance must not have written anything');
+  const done = await queue.succeed(job);
+  assert.equal(done.status, 'SUCCEEDED');
+  assert.equal(done.terminal, true);
+  assert.ok(done.completedAt, 'succeed() sets completedAt');
+});
+
+test('a job finished through succeed() frees the coalesce slot', async () => {
+  const { queue } = harness();
+  let { job } = await queue.create(request());
+  for (const next of ['AUTHENTICATED', 'AUTHORIZED', 'NORMALIZED', 'QUEUED', 'EXECUTING', 'READY_TO_PUBLISH', 'PUBLISHING']) {
+    job = await queue.advance(job, next);
+  }
+  await queue.succeed(job);
+  assert.equal((await queue.create(request())).coalescedWith, null, 'a completed job must not keep absorbing duplicates');
+});
