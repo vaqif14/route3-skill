@@ -86,3 +86,12 @@ test('the bounded reader settles exactly once when the cap is crossed mid-stream
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(settles, 1, 'the promise settled exactly once');
 });
+
+test('the bounded reader stops reading once the cap is exceeded', async () => {
+  const stream = Readable.from([Buffer.alloc(MAX_BODY_BYTES + 1, 0x61)]);
+  let paused = false;
+  const realPause = stream.pause.bind(stream);
+  stream.pause = () => { paused = true; return realPause(); };
+  await assert.rejects(() => readRawBody(stream), BodyTooLarge);
+  assert.equal(paused, true, 'the reader must stop reading, not just stop accumulating');
+});
