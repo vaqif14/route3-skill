@@ -2352,9 +2352,26 @@ git commit -m "feat(gateway): guard job transitions and coalesce identical in-fl
   - `idempotency.createJournal(store): {keyFor, begin(jobId, operation), finish(key, result)}`
   - `begin` returns `{status: 'claimed'|'pending'|'succeeded', key, result?}`
   - `comment.MARKER(jobId): string`, `comment.MARKER_PATTERN: RegExp`, `comment.withMarker(jobId, body): string`
-  - `comment.createCommentPublisher({store, client, audit}): {publish(target, body), adopt(target)}`
+  - `comment.createCommentPublisher({store, client, audit, appId}): {publish(target, body), adopt(target)}`
   - `Target = {jobId, installationId, repositoryFullName, surfaceNumber, trackingCommentId: number|null}`
   - `publish` resolves `{commentId, created: boolean}`
+
+**Invariant I6 (binding): the publisher is deterministic and must never invoke a
+model.** It receives finished text and performs GitHub writes. It does not
+reason, summarise, or generate. Step 1 pins this with a source-level test.
+
+**Adoption must be authenticated (controller amendment, 2026-09-16).** `adopt()`
+recovers from a crash by finding the comment a previous attempt already posted.
+Matching on the marker alone is not sufficient: on a public repository ANY
+GitHub user can post an issue comment, job ids are sequential and predictable,
+and the claim record stays `pending` for the whole duration of a slow or failed
+`createComment`. A forged marker would then be adopted, the real tracking
+comment would never be created, and the gateway would keep writing job status
+into a comment the attacker owns and can rewrite between updates. GitHub stamps
+`performed_via_github_app` on every comment written through an installation
+token, so adoption matches on the marker AND on that app id. If the field is
+ever absent the comment is not adopted and a second comment is posted —
+a duplicate, never a spoof.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2371,6 +2388,8 @@ const { createJournal, keyFor } = require('../gateway/publisher/idempotency');
 const { createMemoryStore } = require('../gateway/jobs/store.memory');
 const { createAuditLog } = require('../gateway/audit/log');
 
+const APP_ID = 424242;
+
 function fakeClient(existing = []) {
   const calls = [];
   let nextId = 100;
@@ -2378,7 +2397,9 @@ function fakeClient(existing = []) {
     calls,
     async createComment(installationId, fullName, number, body) {
       calls.push({ op: 'create', number, body });
-      const comment = { id: nextId++, body };
+      // Mirrors GitHub: a comment written through an installation token carries
+      // the app that wrote it.
+      const comment = { id: nextId++, body, performed_via_github_app: { id: APP_ID } };
       existing.push(comment);
       return comment;
     },
@@ -2399,7 +2420,13 @@ function harness(existing) {
   const store = createMemoryStore();
   const audit = createAuditLog(store);
   const client = fakeClient(existing);
-  return { store, audit, client, publisher: createCommentPublisher({ store, client, audit }) };
+  return { store, audit, client, publisher: createCommentPublisher({ store, client, audit, appId: APP_ID }) };
+}
+
+// A pending claim is the only state in which adopt() runs, so every adoption
+// test has to put the journal there first.
+async function claimed(store, jobId = 'R3-1') {
+  return store.claimOperation({ idempotencyKey: keyFor(jobId, 'comment'), jobId, operation: 'comment' });
 }
 
 test('the idempotency key has the exact documented shape', () => {
@@ -2434,32 +2461,72 @@ test('a completed operation short-circuits with no GitHub call at all', async ()
 });
 
 test('a crashed attempt adopts the comment it already posted instead of duplicating', async () => {
-  const existing = [{ id: 555, body: `${MARKER('R3-1')}\nposted before the crash` }];
+  const existing = [{ id: 555, body: `${MARKER('R3-1')}\nposted before the crash`, performed_via_github_app: { id: APP_ID } }];
   const { publisher, client, store } = harness(existing);
-  // Simulate the crash: the operation was claimed but never completed.
-  await store.claimOperation({ idempotencyKey: keyFor('R3-1', 'comment'), jobId: 'R3-1', operation: 'comment' });
+  await claimed(store);
 
   const result = await publisher.publish(target(), 'after restart');
   assert.equal(result.commentId, 555);
   assert.equal(result.created, false);
   assert.equal(client.calls.filter(call => call.op === 'create').length, 0);
+  assert.equal((await store.listAudit({ jobId: 'R3-1' })).filter(e => e.type === 'COMMENT_ADOPTED').length, 1);
 });
 
 test('a claimed-but-unposted operation posts exactly once on retry', async () => {
   const { publisher, client, store } = harness([]);
-  await store.claimOperation({ idempotencyKey: keyFor('R3-1', 'comment'), jobId: 'R3-1', operation: 'comment' });
+  await claimed(store);
   const result = await publisher.publish(target(), 'after restart');
   assert.equal(result.created, true);
   assert.equal(client.calls.filter(call => call.op === 'create').length, 1);
 });
 
 test('another job marker is never adopted', async () => {
-  const existing = [{ id: 777, body: `${MARKER('R3-99')}\nsomeone else's job` }];
+  const existing = [{ id: 777, body: `${MARKER('R3-99')}\nsomeone else's job`, performed_via_github_app: { id: APP_ID } }];
   const { publisher, client, store } = harness(existing);
-  await store.claimOperation({ idempotencyKey: keyFor('R3-1', 'comment'), jobId: 'R3-1', operation: 'comment' });
+  await claimed(store);
   const result = await publisher.publish(target(), 'mine');
   assert.equal(result.created, true);
   assert.notEqual(result.commentId, 777);
+});
+
+test('a marker-carrying comment written by a human is never adopted', async () => {
+  const existing = [{ id: 666, body: `${MARKER('R3-1')}\nStatus: SUCCEEDED, 0 findings`, performed_via_github_app: null }];
+  const { publisher, client, store } = harness(existing);
+  await claimed(store);
+  const result = await publisher.publish(target(), 'the real body');
+  assert.equal(result.created, true);
+  assert.notEqual(result.commentId, 666);
+  assert.equal(client.calls.filter(call => call.op === 'create').length, 1);
+});
+
+test('a marker-carrying comment written by a different app is never adopted', async () => {
+  const existing = [{ id: 667, body: `${MARKER('R3-1')}\nnot ours`, performed_via_github_app: { id: 999999 } }];
+  const { publisher, store } = harness(existing);
+  await claimed(store);
+  const result = await publisher.publish(target(), 'the real body');
+  assert.equal(result.created, true);
+  assert.notEqual(result.commentId, 667);
+});
+
+test('a succeeded record with no recorded comment id heals by adopting, not by duplicating', async () => {
+  const existing = [{ id: 888, body: `${MARKER('R3-1')}\nposted`, performed_via_github_app: { id: APP_ID } }];
+  const { publisher, client, store } = harness(existing);
+  await claimed(store);
+  await store.completeOperation(keyFor('R3-1', 'comment'), null);
+  const result = await publisher.publish(target(), 'after restart');
+  assert.equal(result.commentId, 888);
+  assert.equal(result.created, false);
+  assert.equal(client.calls.filter(call => call.op === 'create').length, 0);
+});
+
+test('the publisher refuses to construct without a usable app id', () => {
+  const store = createMemoryStore();
+  const audit = createAuditLog(store);
+  const client = fakeClient();
+  for (const appId of [undefined, null, '', 0, -1, 'not-a-number']) {
+    assert.throws(() => createCommentPublisher({ store, client, audit, appId }), /app id/i, `appId ${JSON.stringify(appId)} must be refused`);
+  }
+  assert.doesNotThrow(() => createCommentPublisher({ store, client, audit, appId: '424242' }));
 });
 
 test('withMarker puts the marker on its own first line', () => {
@@ -2520,13 +2587,31 @@ function withMarker(jobId, body) { return `${MARKER(jobId)}\n${body}`; }
 
 // Deterministic by construction. It receives validated text and performs GitHub
 // writes. It never reasons, and never invokes a model (invariant I6).
-function createCommentPublisher({ store, client, audit }) {
+function createCommentPublisher({ store, client, audit, appId }) {
+  // The app id authenticates adoption. Without it a forged marker would be
+  // adoptable, so a missing or unusable id is a construction-time failure
+  // rather than a silently weaker check at request time.
+  const ownAppId = Number(appId);
+  if (!Number.isInteger(ownAppId) || ownAppId <= 0) {
+    throw new Error('createCommentPublisher requires a positive integer GitHub app id');
+  }
+
   const journal = createJournal(store);
+
+  // GitHub stamps performed_via_github_app on comments written through an
+  // installation token. Anyone who can comment on the surface can write the
+  // marker; only this app can produce this stamp.
+  function writtenByThisApp(comment) {
+    const app = comment && comment.performed_via_github_app;
+    return Boolean(app) && Number(app.id) === ownAppId;
+  }
 
   async function adopt(target) {
     const comments = await client.listComments(target.installationId, target.repositoryFullName, target.surfaceNumber);
     const found = (comments || []).find(comment =>
-      typeof comment.body === 'string' && comment.body.includes(MARKER(target.jobId)));
+      typeof comment.body === 'string'
+      && comment.body.includes(MARKER(target.jobId))
+      && writtenByThisApp(comment));
     return found ? found.id : null;
   }
 
@@ -2542,13 +2627,23 @@ function createCommentPublisher({ store, client, audit }) {
     }
 
     const claim = await journal.begin(target.jobId, 'comment');
-    if (claim.status === 'succeeded') {
-      return { commentId: claim.result.commentId, created: false };
+    const recorded = claim.result && claim.result.commentId;
+    if (claim.status === 'succeeded' && recorded) {
+      return { commentId: recorded, created: false };
     }
-    if (claim.status === 'pending') {
+    // 'pending' means an earlier attempt claimed this operation and never
+    // finished it. 'succeeded' with no recorded id means the journal lost the
+    // result. Both are repaired the same way: look for the comment this app
+    // already wrote before writing a second one.
+    if (claim.status !== 'claimed') {
       const existing = await adopt(target);
       if (existing !== null) {
         await journal.finish(claim.key, { commentId: existing });
+        await audit.append({
+          type: 'COMMENT_ADOPTED', actor: 'publisher',
+          installationId: target.installationId, jobId: target.jobId,
+          metadata: { commentId: existing },
+        });
         return { commentId: existing, created: false };
       }
     }
@@ -2573,7 +2668,7 @@ module.exports = { createCommentPublisher, MARKER, MARKER_PATTERN, withMarker };
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npm test`
-Expected: PASS — 9 new tests, 0 fail.
+Expected: PASS — 13 new tests, 0 fail.
 
 - [ ] **Step 5: Commit**
 
@@ -2892,7 +2987,7 @@ async function harness({ permission = 'admin', allowlist = '1001', enabled = tru
   const audit = createAuditLog(store);
   const queue = createQueue({ store, audit });
   const client = fakeClient(permission);
-  const publisher = createCommentPublisher({ store, client, audit });
+  const publisher = createCommentPublisher({ store, client, audit, appId: 424242 });
   const lines = [];
   const log = createLogger({ write: line => lines.push(line) });
 
@@ -3914,7 +4009,7 @@ async function start(env = process.env) {
   const queue = createQueue({ store, audit });
   const tokens = createInstallationTokens({ appId: config.appId, privateKey: config.privateKey });
   const client = createClient({ tokens });
-  const publisher = createCommentPublisher({ store, client, audit });
+  const publisher = createCommentPublisher({ store, client, audit, appId: config.appId });
   const ingress = createIngress({ config, store, client, queue, audit, publisher, log });
 
   const server = createServer({ ingress, log });
@@ -4013,7 +4108,7 @@ async function bench({ permission = 'admin', allowlist = '1001', repositoryInsta
   const audit = createAuditLog(store);
   const queue = createQueue({ store, audit });
   const client = fakeClient(permission);
-  const publisher = createCommentPublisher({ store, client, audit });
+  const publisher = createCommentPublisher({ store, client, audit, appId: 424242 });
   const lines = [];
   const log = createLogger({ write: line => lines.push(line) });
   await store.upsertInstallation({ id: 1001, accountLogin: 'vaqif14', accountType: 'User', enabled: true, suspendedAt: null });
