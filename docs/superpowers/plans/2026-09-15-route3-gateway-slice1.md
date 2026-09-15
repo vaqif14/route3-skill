@@ -231,6 +231,17 @@ test('shell metacharacters never produce a command', () => {
   assert.equal(parseCommand('/route3 review `id`').ok, false);
 });
 
+test('shell metacharacters in a flag value are refused', () => {
+  for (const attempt of ['/route3 fix tests --limit=$(id)', '/route3 review --x=`id`', '/route3 review --x=a;rm', '/route3 review --x=a|nc', '/route3 review --x=a&&b']) {
+    assert.equal(parseCommand(attempt).ok, false, `${attempt} must not parse`);
+  }
+});
+
+test('ordinary flag values still parse, including paths', () => {
+  assert.deepEqual(parseCommand('/route3 review --ref=feature/foo-bar --limit=20').ast.options, { ref: 'feature/foo-bar', limit: '20' });
+  assert.equal(parseCommand('/route3 review --path=../../.github/workflows/backdoor.yml').ast.options.path, '../../.github/workflows/backdoor.yml');
+});
+
 test('an unknown command is reported, not executed', () => {
   assert.deepEqual(parseCommand('/route3 deploy'), { ok: false, reason: 'unknown_command', command: 'deploy', subcommand: null });
 });
@@ -365,7 +376,10 @@ const { lookup } = require('./registry');
 const PREFIX = '/route3';
 const FENCE = /^\s*(`{3,}|~{3,})/;
 const WORD = /^[A-Za-z][A-Za-z0-9-]*$/;
-const FLAG = /^--([A-Za-z][A-Za-z0-9-]*)(?:=([^\s]{1,120}))?$/;
+// The value charset is deliberately narrow. A flag value becomes an argument to
+// an execution adapter in a later slice, so command substitution and shell
+// metacharacters are refused here rather than carried as data.
+const FLAG = /^--([A-Za-z][A-Za-z0-9-]*)(?:=([A-Za-z0-9._][A-Za-z0-9._,:\/@-]{0,119}))?$/;
 const MAX_TOKENS = 12;
 
 // Fenced blocks are quoted text, not instructions. Stripping them first stops a
@@ -434,7 +448,7 @@ module.exports = { parseCommand, unfenced };
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npm test`
-Expected: PASS — 14 new tests, 0 fail.
+Expected: PASS — 16 new tests, 0 fail.
 
 - [ ] **Step 5: Commit**
 
