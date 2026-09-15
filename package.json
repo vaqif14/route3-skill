@@ -3,13 +3,14 @@
   "version": "2.1.0",
   "description": "Route3: measured session supervision, efficient expert dispatch, and a native Mac control center for agents, OpenClaw, browser and Telegram.",
   "main": "bin/route3-skill.js",
+  "workspaces": ["app"],
   "bin": {
     "route3-skill": "bin/route3-skill.js"
   },
   "scripts": {
     "postinstall": "node bin/route3-skill.js install --quiet",
     "start": "node control-center/server.js",
-    "test": "node --test test/*.test.js control-center/test/*.test.js",
+    "test": "node --test test/*.test.js control-center/test/*.test.js app/test/*.test.js",
     "test:legacy": "bash skill/scripts/test-factory-smoke.sh",
     "test:context": "bash skill/context/test-context.sh",
     "test:hooks": "bash skill/hooks/test-hooks.sh",

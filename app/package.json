@@ -1,0 +1,14 @@
+{
+  "name": "@route3/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Route3 GitHub App gateway: webhook ingress, authorization and durable job core.",
+  "main": "gateway/server.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node gateway/server.js"
+  }
+}
