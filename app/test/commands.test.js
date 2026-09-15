@@ -40,6 +40,17 @@ test('shell metacharacters never produce a command', () => {
   assert.equal(parseCommand('/route3 review `id`').ok, false);
 });
 
+test('shell metacharacters in a flag value are refused', () => {
+  for (const attempt of ['/route3 fix tests --limit=$(id)', '/route3 review --x=`id`', '/route3 review --x=a;rm', '/route3 review --x=a|nc', '/route3 review --x=a&&b']) {
+    assert.equal(parseCommand(attempt).ok, false, `${attempt} must not parse`);
+  }
+});
+
+test('ordinary flag values still parse, including paths', () => {
+  assert.deepEqual(parseCommand('/route3 review --ref=feature/foo-bar --limit=20').ast.options, { ref: 'feature/foo-bar', limit: '20' });
+  assert.equal(parseCommand('/route3 review --path=../../.github/workflows/backdoor.yml').ast.options.path, '../../.github/workflows/backdoor.yml');
+});
+
 test('an unknown command is reported, not executed', () => {
   assert.deepEqual(parseCommand('/route3 deploy'), { ok: false, reason: 'unknown_command', command: 'deploy', subcommand: null });
 });

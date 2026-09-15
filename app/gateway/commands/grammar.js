@@ -5,7 +5,7 @@ const { lookup } = require('./registry');
 const PREFIX = '/route3';
 const FENCE = /^\s*(`{3,}|~{3,})/;
 const WORD = /^[A-Za-z][A-Za-z0-9-]*$/;
-const FLAG = /^--([A-Za-z][A-Za-z0-9-]*)(?:=([^\s]{1,120}))?$/;
+const FLAG = /^--([A-Za-z][A-Za-z0-9-]*)(?:=([A-Za-z0-9._][A-Za-z0-9._,:\/@-]{0,119}))?$/;
 const MAX_TOKENS = 12;
 
 // Fenced blocks are quoted text, not instructions. Stripping them first stops a
