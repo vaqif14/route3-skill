@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 
 const { appJwt, base64url, createInstallationTokens } = require('../gateway/github/auth');
-const { createClient, GitHubError } = require('../gateway/github/client');
+const { createClient, GitHubError, UnsafePathSegment } = require('../gateway/github/client');
 const { testKeyPair, recordingFetch } = require('./support/github');
 
 const { publicKey, privateKey } = testKeyPair();
@@ -136,4 +136,74 @@ test('the comment endpoints use the documented GitHub paths', async () => {
     'PATCH /repos/o/r/issues/comments/100',
     'GET /repos/o/r/issues/42/comments?per_page=100',
   ]);
+});
+
+test('unsafe path segments are refused before any request is made', async () => {
+  const { fetchImpl, calls } = recordingFetch({ 'POST /app/installations/1001/access_tokens': () => ({ status: 201, body: { token: 't', expires_at: new Date(Date.now() + 3600_000).toISOString() } }) });
+  const client = createClient({ tokens: createInstallationTokens({ appId: 1, privateKey, fetchImpl }), fetchImpl });
+  for (const bad of ['o/r/../../user/repos', 'o/r/../../app/installations/9999/access_tokens#', 'o', 'o/r/x', '../etc']) {
+    await assert.rejects(() => client.createComment(1001, bad, 42, 'x'), UnsafePathSegment, bad);
+  }
+  for (const bad of ['a/../../../user/repos', 'someone?visible=false', 'has space', '']) {
+    await assert.rejects(() => client.actorPermission(1001, 'o/r', bad), UnsafePathSegment, bad);
+  }
+  assert.equal(calls.length, 0, 'nothing may reach the network with an unsafe segment');
+});
+
+test('a legitimate repository name and login still pass', async () => {
+  const { fetchImpl } = recordingFetch({
+    'POST /app/installations/1001/access_tokens': () => ({ status: 201, body: { token: 't', expires_at: new Date(Date.now() + 3600_000).toISOString() } }),
+    'GET /repos/vaqif14/route3-e2e-fixture/collaborators/vaqif14/permission': () => ({ status: 200, body: { permission: 'admin' } }),
+  });
+  const client = createClient({ tokens: createInstallationTokens({ appId: 1, privateKey, fetchImpl }), fetchImpl });
+  assert.equal(await client.actorPermission(1001, 'vaqif14/route3-e2e-fixture', 'vaqif14'), 'admin');
+});
+
+test('a hung request times out as a transient failure', async () => {
+  const fetchImpl = (url, options) => new Promise((resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'TimeoutError' })));
+  });
+  const tokens = { get: async () => 't', forget: () => {} };
+  const client = createClient({ tokens, fetchImpl, timeoutMs: 25 });
+  await assert.rejects(() => client.request(1001, 'GET', '/x'), error => {
+    assert.equal(error.name, 'GitHubError');
+    assert.equal(error.transient, true);
+    assert.match(error.message, /timed out/);
+    return true;
+  });
+});
+
+test('a 401 drops the cached token so the next call re-mints', async () => {
+  let forgotten = null;
+  const tokens = { get: async () => 't', forget: id => { forgotten = id; } };
+  const { fetchImpl } = recordingFetch({ 'GET /x': () => ({ status: 401, body: { message: 'Bad credentials' } }) });
+  const client = createClient({ tokens, fetchImpl });
+  await assert.rejects(() => client.request(1001, 'GET', '/x'));
+  assert.equal(forgotten, 1001, 'a 401 must invalidate the cached installation token');
+});
+
+test('rate-limit exhaustion is surfaced and classified transient', async () => {
+  const tokens = { get: async () => 't', forget: () => {} };
+  const { fetchImpl } = recordingFetch({
+    'GET /x': () => ({ status: 403, body: { message: 'rate limit' }, headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1800000000', 'retry-after': '60' } }),
+    'GET /y': () => ({ status: 403, body: { message: 'forbidden' } }),
+  });
+  const client = createClient({ tokens, fetchImpl });
+  await assert.rejects(() => client.request(1001, 'GET', '/x'), error => {
+    assert.equal(error.transient, true, '403 with remaining 0 is rate limiting');
+    assert.equal(error.rateLimit.remaining, 0);
+    assert.equal(error.retryAfter, 60);
+    return true;
+  });
+  await assert.rejects(() => client.request(1001, 'GET', '/y'), error => {
+    assert.equal(error.transient, false, 'a plain 403 is not transient');
+    return true;
+  });
+});
+
+test('a malformed expires_at is rejected rather than cached', async () => {
+  const { fetchImpl } = recordingFetch({ 'POST /app/installations/1001/access_tokens': () => ({ status: 201, body: { token: 't', expires_at: 'not-a-date' } }) });
+  const tokens = createInstallationTokens({ appId: 1, privateKey, fetchImpl });
+  await assert.rejects(() => tokens.get(1001), /malformed/i);
+  assert.equal(tokens.size(), 0, 'a malformed response must not be cached');
 });

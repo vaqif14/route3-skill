@@ -119,3 +119,10 @@ test('a function in audit metadata does not break the append', async () => {
   assert.equal(event.metadata.cb, '[FUNCTION]');
   assert.equal(event.metadata.n, 2);
 });
+
+test('a bare installation token is redacted even outside a sensitive key', () => {
+  const { redact } = require('../../control-center/security');
+  const token = 'ghs_16C7e42F292c6912E7710c838347Ae178B4a';
+  assert.doesNotMatch(redact(`deploy used ${token} today`), /ghs_16C7e42F/);
+  assert.doesNotMatch(redact(JSON.stringify({ note: token })), /ghs_16C7e42F/);
+});
