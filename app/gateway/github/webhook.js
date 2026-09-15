@@ -20,9 +20,21 @@ function readRawBody(request, limit = MAX_BODY_BYTES) {
     let settled = false;
     request.on('data', chunk => {
       if (settled) return;
-      bytes += chunk.length;
-      if (bytes > limit) { settled = true; reject(new BodyTooLarge()); return; }
-      chunks.push(chunk);
+      // Node's http server emits Buffers, but a caller that set an encoding would
+      // emit strings: counting chunk.length would then count characters, not bytes,
+      // and Buffer.concat would throw inside the 'end' listener and escape this
+      // promise. Buffer.from assumes UTF-8, which is correct for a JSON webhook body.
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bytes += buffer.length;
+      if (bytes > limit) {
+        settled = true;
+        // Stop reading, do not destroy: the caller still has to write a 413 on this
+        // response, and destroying the socket here would prevent that.
+        request.pause();
+        reject(new BodyTooLarge());
+        return;
+      }
+      chunks.push(buffer);
     });
     request.on('end', () => { if (!settled) { settled = true; resolve(Buffer.concat(chunks)); } });
     request.on('error', error => { if (!settled) { settled = true; reject(error); } });

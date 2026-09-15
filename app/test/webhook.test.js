@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { Readable } = require('node:stream');
 
 const { readRawBody, verifySignature, dedupe, BodyTooLarge, MAX_BODY_BYTES } = require('../gateway/github/webhook');
 const { createMemoryStore } = require('../gateway/jobs/store.memory');
@@ -56,4 +57,32 @@ test('a delivery is accepted once and deduped thereafter', async () => {
   assert.equal(await dedupe(store, delivery), true);
   assert.equal(await dedupe(store, delivery), false);
   assert.equal(await dedupe(store, { ...delivery, deliveryId: 'cccc-dddd' }), true);
+});
+
+test('signature forgery variants are all rejected', () => {
+  const body = Buffer.from('{"action":"created"}');
+  const good = sign(body);
+  const flipped = good.slice(0, -1) + (good.slice(-1) === 'a' ? 'b' : 'a');
+  assert.equal(verifySignature(body, flipped, SECRET), false, 'single bit flip');
+  assert.equal(verifySignature(body, good.slice(0, -4), SECRET), false, 'truncated');
+  assert.equal(verifySignature(body, `${good}00`, SECRET), false, 'extended');
+  assert.equal(verifySignature(body, good.toUpperCase(), SECRET), false, 'uppercase hex');
+  assert.equal(verifySignature(body, good.replace('sha256=', 'sha1='), SECRET), false, 'downgraded prefix');
+  assert.equal(verifySignature(body, [good], SECRET), false, 'header collapsed to an array');
+  assert.equal(verifySignature(body, {}, SECRET), false, 'header not a string');
+});
+
+test('string chunks are normalised to Buffers and counted by byte length', async () => {
+  const body = await readRawBody(Readable.from(['{"a":', '1}']));
+  assert.ok(Buffer.isBuffer(body));
+  assert.equal(body.toString(), '{"a":1}');
+});
+
+test('the bounded reader settles exactly once when the cap is crossed mid-stream', async () => {
+  const half = Buffer.alloc(Math.ceil(MAX_BODY_BYTES / 2) + 1, 0x61);
+  let settles = 0;
+  await readRawBody(Readable.from([half, half, half]))
+    .then(() => { settles += 1; }, error => { settles += 1; assert.ok(error instanceof BodyTooLarge); });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settles, 1, 'the promise settled exactly once');
 });
