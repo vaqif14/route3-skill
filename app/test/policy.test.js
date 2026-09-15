@@ -26,6 +26,22 @@ test('a repository may raise the bar above the command default', () => {
   assert.equal(resolve(review, { repository: { minimum: 'admin' } }).minimum, 'admin');
 });
 
+test('every layer participates in the minimum, not just the repository', () => {
+  const help = lookup('help', null); // minimumPermission: read
+  // Resolves to 'write' instead if the global layer is not passed through.
+  assert.equal(resolve(help, { global: { minimum: 'maintain' }, installation: { minimum: 'write' }, repository: { minimum: 'read' } }).minimum, 'maintain');
+  // Resolves to 'read' instead if the installation layer is not passed through.
+  assert.equal(resolve(help, { global: { minimum: 'read' }, installation: { minimum: 'admin' }, repository: { minimum: 'read' } }).minimum, 'admin');
+  // Resolves to 'read' instead if the repository layer is not passed through.
+  assert.equal(resolve(help, { global: { minimum: 'read' }, installation: { minimum: 'read' }, repository: { minimum: 'triage' } }).minimum, 'triage');
+});
+
+test('an unknown permission inside a layer throws', () => {
+  const review = lookup('review', null);
+  assert.throws(() => resolve(review, { repository: { minimum: 'root' } }), /Unknown permission/);
+  assert.throws(() => resolve(review, { installation: { minimum: 'superuser' } }), /Unknown permission/);
+});
+
 test('any layer can disable a command', () => {
   const review = lookup('review', null);
   assert.equal(resolve(review, {}).enabled, true);
