@@ -505,6 +505,21 @@ test('a repository may raise the bar above the command default', () => {
   assert.equal(resolve(review, { repository: { minimum: 'admin' } }).minimum, 'admin');
 });
 
+// Each assertion pins exactly one layer: drop that layer from the
+// mostRestrictive(...) call in resolve() and that one assertion fails.
+test('every layer participates in the minimum, not just the repository', () => {
+  const help = lookup('help', null); // minimumPermission: read
+  assert.equal(resolve(help, { global: { minimum: 'maintain' }, installation: { minimum: 'write' }, repository: { minimum: 'read' } }).minimum, 'maintain');
+  assert.equal(resolve(help, { global: { minimum: 'read' }, installation: { minimum: 'admin' }, repository: { minimum: 'read' } }).minimum, 'admin');
+  assert.equal(resolve(help, { global: { minimum: 'read' }, installation: { minimum: 'read' }, repository: { minimum: 'triage' } }).minimum, 'triage');
+});
+
+test('an unknown permission inside a layer throws', () => {
+  const review = lookup('review', null);
+  assert.throws(() => resolve(review, { repository: { minimum: 'root' } }), /Unknown permission/);
+  assert.throws(() => resolve(review, { installation: { minimum: 'superuser' } }), /Unknown permission/);
+});
+
 test('any layer can disable a command', () => {
   const review = lookup('review', null);
   assert.equal(resolve(review, {}).enabled, true);
@@ -564,7 +579,7 @@ module.exports = { mostRestrictive, resolve, LAYERS };
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npm test`
-Expected: PASS — 6 new tests, 0 fail.
+Expected: PASS — 8 new tests, 0 fail.
 
 - [ ] **Step 5: Commit**
 
