@@ -2041,17 +2041,24 @@ async function authorize({ store, client, normalized, ast, allowlist }) {
   const descriptor = lookup(ast.command, ast.subcommand);
   if (!descriptor) return reject('command_disabled');
 
-  const installation = await store.getInstallation(normalized.installationId);
+  // The installation id from the HMAC-verified payload is a guaranteed integer
+  // (events.js requireInteger). A stored row's id may arrive as a string once a
+  // BIGINT column is involved, so identity comparisons key off the verified value.
+  const installationId = normalized.installationId;
+
+  const installation = await store.getInstallation(installationId);
   if (!installation) return reject('installation_unknown');
   if (installation.suspendedAt) return reject('installation_suspended');
-  if (installation.enabled !== true || !allowlist.has(installation.id)) return reject('installation_disabled');
+  if (installation.enabled !== true || !allowlist.has(installationId)) return reject('installation_disabled');
 
   const repository = await store.getRepository(normalized.repository.id);
   if (!repository) return reject('repository_unknown');
-  if (repository.installationId !== installation.id) {
+  if (Number(repository.installationId) !== installationId) {
     return { ...reject('repository_foreign'), securityEvent: true };
   }
-  if (repository.enabled === false) return reject('repository_disabled');
+  // Fail closed, symmetrically with the installation check above: a NULL column,
+  // a pre-migration row or a JSON round-trip must not silently grant access.
+  if (repository.enabled !== true) return reject('repository_disabled');
 
   const policy = resolve(descriptor, {
     global: { enabled: true },
@@ -2060,7 +2067,9 @@ async function authorize({ store, client, normalized, ast, allowlist }) {
   });
   if (!policy.enabled) return reject('command_disabled');
 
-  const permission = await client.actorPermission(installation.id, repository.fullName, normalized.actor.login);
+  // The verified integer, not the store row's id: this value becomes the token
+  // cache key downstream, and a second call site would otherwise cache twice.
+  const permission = await client.actorPermission(installationId, repository.fullName, normalized.actor.login);
   if (rank(permission) < rank(policy.minimum)) {
     return reject('actor_permission', `Required: ${policy.minimum}. Yours: ${permission}.`);
   }
