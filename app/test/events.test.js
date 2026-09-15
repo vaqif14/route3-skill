@@ -66,3 +66,28 @@ test('installation events are supported but carry no command', () => {
   assert.equal(result.actionable, false);
   assert.equal(result.installationId, 1001);
 });
+
+test('a pull_request_review_comment resolves its surface from pull_request, not issue', () => {
+  const payload = {
+    action: 'created',
+    installation: { id: 1001 },
+    repository: { id: 5001, full_name: 'vaqif14/route3-e2e-fixture', default_branch: 'main', private: true, owner: { id: 9001, login: 'vaqif14' } },
+    pull_request: { number: 42 },
+    comment: { id: 7001, body: '/route3 review' },
+    sender: { id: 9001, login: 'vaqif14' },
+  };
+  const result = normalize('pull_request_review_comment', payload);
+  assert.equal(result.actionable, true);
+  assert.equal(result.surface, 'pull_request');
+  assert.equal(result.surfaceNumber, 42);
+  assert.equal(result.body, '/route3 review');
+});
+
+test('installation events normalize with a null repository', () => {
+  for (const event of ['installation', 'installation_repositories']) {
+    const result = normalize(event, { action: 'created', installation: { id: 1001 } });
+    assert.equal(result.supported, true);
+    assert.equal(result.actionable, false);
+    assert.equal(result.repository, null, `${event} must carry no repository`);
+  }
+});
