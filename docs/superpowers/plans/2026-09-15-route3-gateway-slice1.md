@@ -1344,7 +1344,8 @@ git commit -m "feat(gateway): verify webhook signatures over raw bytes and dedup
   - `events.SUPPORTED: Set<string>` — exactly the six subscribed events
   - `events.InvalidEvent` — Error with `.reason`
   - `events.normalize(event: string, payload: object): Normalized`
-  - `Normalized = {supported: false, event}` | `{supported: true, actionable: false, event, installationId, action, repository}` | `{supported: true, actionable: true, event, installationId, action, repository, surface, surfaceNumber, commentId, body, actor: {id, login}}`
+  - `Normalized = {supported: false, event}` | `{supported: true, actionable: false, event, installationId, action, repository: Repository|null}` | `{supported: true, actionable: true, event, installationId, action, repository: Repository, surface, surfaceNumber, commentId, body, actor: {id, login}}`
+  - **`repository` is `null` on the non-actionable shape** for `installation` and `installation_repositories`, which carry no repository. Any consumer must return early on `actionable === false` before dereferencing it.
   - `Repository = {id, fullName, defaultBranch, private, ownerId}`
   - `payloads.issueComment(overrides): object` — a valid `issue_comment` payload
 
