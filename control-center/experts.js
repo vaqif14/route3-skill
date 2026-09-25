@@ -9,6 +9,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const { redact } = require('./security');
+const { normalizeBrain } = require('./notebooklm');
 
 const LIMITS = Object.freeze({ labelMax: 60, focusMax: 200, briefMax: 2000, customLimit: 12, fileBytes: 196608 });
 
@@ -67,8 +68,9 @@ class ExpertRegistry {
           || typeof entry.focus !== 'string' || entry.focus.length > LIMITS.focusMax
           || typeof entry.brief !== 'string' || entry.brief.trim().length < 10 || entry.brief.length > LIMITS.briefMax
           || typeof entry.createdAt !== 'string' || entry.createdAt.length > 40 || !Number.isFinite(Date.parse(entry.createdAt))) throw new Error('Invalid custom expert.');
+        const brain = normalizeBrain(entry.brain); // throws on a tampered binding
         ids.add(entry.id);
-        return { id: entry.id, label: redact(entry.label).slice(0, LIMITS.labelMax), focus: redact(entry.focus).slice(0, LIMITS.focusMax), brief: redact(entry.brief).slice(0, LIMITS.briefMax), custom: true, createdAt: entry.createdAt };
+        return { id: entry.id, label: redact(entry.label).slice(0, LIMITS.labelMax), focus: redact(entry.focus).slice(0, LIMITS.focusMax), brief: redact(entry.brief).slice(0, LIMITS.briefMax), custom: true, createdAt: entry.createdAt, brain };
       });
     } finally { fs.closeSync(descriptor); }
   }
@@ -132,7 +134,7 @@ class ExpertRegistry {
     this.refresh();
     return [
       ...BUILTIN.map(({ id, label, focus }) => ({ id, label, focus, custom: false })),
-      ...this.custom.map(({ id, label, focus, createdAt }) => ({ id, label, focus, custom: true, createdAt })),
+      ...this.custom.map(({ id, label, focus, createdAt, brain }) => ({ id, label, focus, custom: true, createdAt, brain: brain ? { ...brain } : null })),
     ];
   }
 
@@ -151,11 +153,12 @@ class ExpertRegistry {
     const focus = typeof input?.focus === 'string' ? input.focus.trim().slice(0, LIMITS.focusMax) : '';
     const brief = typeof input?.brief === 'string' ? input.brief.trim() : '';
     if (brief.length < 10 || brief.length > LIMITS.briefMax) throw Object.assign(new Error(`Expert instructions must contain 10–${LIMITS.briefMax} characters.`), { statusCode: 400 });
+    const brain = normalizeBrain(input?.brain); // callers pass a server-resolved notebook or nothing
     return this.mutate(latest => {
       if (latest.length >= LIMITS.customLimit) throw Object.assign(new Error(`Custom expert limit reached (${LIMITS.customLimit}). Remove one before creating another.`), { statusCode: 409 });
       let id = `x-${crypto.randomBytes(4).toString('hex')}`;
       while (latest.some(expert => expert.id === id)) id = `x-${crypto.randomBytes(4).toString('hex')}`;
-      const expert = { id, label: redact(label).slice(0, LIMITS.labelMax), focus: focus ? redact(focus).slice(0, LIMITS.focusMax) : 'İstifadəçi təyinatlı ekspert', brief: redact(brief).slice(0, LIMITS.briefMax), custom: true, createdAt: new Date().toISOString() };
+      const expert = { id, label: redact(label).slice(0, LIMITS.labelMax), focus: focus ? redact(focus).slice(0, LIMITS.focusMax) : 'İstifadəçi təyinatlı ekspert', brief: redact(brief).slice(0, LIMITS.briefMax), custom: true, brain, createdAt: new Date().toISOString() };
       latest.push(expert);
       return { ...expert };
     });

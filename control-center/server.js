@@ -57,7 +57,7 @@ function createServer(options = {}) {
   const nightShift = options.nightShift || new NightShift({ jobs, experts, ...(options.persistJobs ? { file: path.join(options.home || os.homedir(), `.local/share/route3/night-shift/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}) });
   const telemetry = options.collectTelemetry || (args => require('./telemetry').collectTelemetry(args));
   const publicDir = options.publicDir || path.join(__dirname, 'public');
-  let telemetryCache = null, telemetryAt = 0, pendingTelemetry = null;
+  let telemetryCache = null, telemetryAt = 0, pendingTelemetry = null, drafting = false;
   async function collect() {
     if (telemetryCache && Date.now() - telemetryAt < 10000) return telemetryCache;
     if (!pendingTelemetry) {
@@ -126,12 +126,33 @@ function createServer(options = {}) {
       }
       // A brain is only ever built by the server from a listed notebook id; a
       // client-supplied `brain` object is discarded.
-      const grounded = async () => { const { brain: _client, notebook, ...rest } = body; return { ...rest, brain: await notebooklm.resolve(notebook) }; };
+      const grounded = async () => {
+        const { brain: _client, notebook, ...rest } = body;
+        let brain = await notebooklm.resolve(notebook);
+        // An expert's bound notebook is re-checked against the live list here, so a
+        // stale binding in experts.json cannot reach a job unverified.
+        if (!brain && typeof rest.expert === 'string') {
+          const expert = experts.find(rest.expert);
+          if (expert?.brain) {
+            try { brain = await notebooklm.resolve(expert.brain.id); }
+            catch { throw Object.assign(new Error(`The notebook bound to expert "${expert.label}" is no longer on this account. Refresh the NotebookLM list or recreate the expert.`), { statusCode: 400 }); }
+          }
+        }
+        return { ...rest, brain };
+      };
       if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(await grounded()) });
       if (pathname === '/api/notebooklm/refresh') return json(response, 200, { notebooklm: await notebooklm.refresh({ force: true }) });
       if (pathname === '/api/night-shift/queue') return json(response, 200, { item: nightShift.enqueue(await grounded()), nightShift: nightShift.snapshot() });
       if (pathname === '/api/night-shift/schedule') return json(response, 200, { nightShift: nightShift.configure(body) });
-      if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(body) });
+      if (pathname === '/api/experts/draft') {
+        const brain = await notebooklm.resolve(body.notebook);
+        if (!brain) return json(response, 400, { error: 'Choose a NotebookLM notebook to draft from.' });
+        if (drafting) return json(response, 409, { error: 'A draft is already being prepared. Wait for it to finish.' });
+        drafting = true;
+        try { return json(response, 200, { draft: await notebooklm.draftExpert(brain, typeof body.hint === 'string' ? body.hint : '') }); }
+        finally { drafting = false; }
+      }
+      if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(await grounded()) });
       const cancel = /^\/api\/jobs\/([0-9a-f-]{36})\/cancel$/.exec(pathname);
       if (cancel) return json(response, 200, { job: jobs.cancel(cancel[1]) });
       const permission = /^\/api\/jobs\/([0-9a-f-]{36})\/permission$/.exec(pathname);

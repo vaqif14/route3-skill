@@ -54,3 +54,9 @@
 .brain-row button{white-space:nowrap}
 .brain-field{margin-bottom:18px}
 .brain-field .field-help{margin-top:8px}
+.expert-draft{border:1px dashed var(--line);border-radius:10px;padding:16px;margin-bottom:22px}
+.expert-draft .eyebrow{margin:0 0 6px}
+.expert-draft label{font-size:12px;font-weight:600;display:block;margin:12px 0 8px}
+.expert-draft input[type=text]{width:100%;border:1px solid var(--line);border-radius:7px;background:var(--bg);padding:10px 12px;font-size:12px}
+.expert-draft .form-footer{margin-top:14px;gap:12px}
+.expert-draft .form-footer button{white-space:nowrap}

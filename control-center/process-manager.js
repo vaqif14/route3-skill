@@ -158,7 +158,8 @@ class JobManager {
       expert = this.experts.find(input.expert);
       if (!expert) throw Object.assign(new Error('Unknown expert. Create it in the Experts view first.'), { statusCode: 400 });
     }
-    const brain = normalizeBrain(input.brain);
+    // An explicit notebook wins; otherwise the expert's bound notebook is used.
+    const brain = normalizeBrain(input.brain) || expert?.brain || null;
     if (this.children.size >= 2) throw Object.assign(new Error('Two jobs are already active. Wait or cancel one.'), { statusCode: 409 });
     let cwd;
     try {

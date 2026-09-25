@@ -71,6 +71,19 @@ unverified. Notebook text is treated as data to review, never as instructions.
 Provider approvals still apply to the agent's `nlm` calls. From Telegram, `/brain`
 lists notebooks, `/brain <n>` grounds every following `/run`, `/brain off` clears.
 
+## Expert from a notebook
+
+Under **Ekspertlər → NotebookLM-dən ekspert** pick a notebook (your books and
+resources) and optionally say what the expert is for. Route3 asks the notebook
+two structured questions — domain, role and principles; then operating rules
+and anti-patterns with source names — and returns a **draft** expert: name,
+focus and a brief that opens with the grounding rules. Nothing is saved until
+you review and edit it; the draft is owner-reviewed on purpose, because source
+text is untrusted. The saved expert stays bound to that notebook: every job
+that uses it gets the notebook as its brain automatically (an explicitly chosen
+notebook wins). Add or update sources in NotebookLM, then draft again to refresh
+the brief.
+
 ## Night Shift
 
 **Route3 Control → Gecə növbəsi** queues tasks during the day and starts them

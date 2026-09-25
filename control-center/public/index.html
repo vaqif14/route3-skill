@@ -50,6 +50,10 @@
         <div class="page-heading"><div><p class="eyebrow">ROUTE3 DAXİLİ AGENTLƏR</p><h1 id="experts-heading">Ekspertlər</h1><p>Hər iş üçün ixtisaslaşmış daxili agent — istədiyin zaman yenisini yarat.</p></div></div>
         <div class="overview-grid expert-layout">
           <article class="panel"><div class="panel-heading"><div><h2>Yeni ekspert yarat</h2><p>Xüsusi ixtisaslı daxili agent — bütün provayderlərlə işləyir</p></div><span class="badge">Lokal</span></div>
+            <div class="expert-draft"><p class="eyebrow">NOTEBOOKLM-DƏN EKSPERT</p><p class="field-help">Kitab və resursları bir NotebookLM notebook-una yığın. Route3 mənbələrə iki strukturlu sorğu verib ekspert təlimatının layihəsini hazırlayır; siz oxuyub düzəldirsiniz, sonra saxlayırsınız. Ekspert həmin notebook-a daimi bağlanır və seçildiyi hər işdə onu sorğulayıb mənbə göstərir.</p>
+              <label for="expert-brain">Notebook</label><div class="brain-row"><select id="expert-brain"><option value="">Notebook seçin</option></select><button class="secondary" type="button" data-brain-refresh>Siyahını yenilə</button></div>
+              <label for="expert-hint">Bu ekspert nə üçündür? (istəyə görə)</label><input id="expert-hint" type="text" maxlength="200" autocomplete="off" placeholder="Məsələn: kitablardakı prinsiplərə görə kod review edən mentor">
+              <div class="form-footer"><span class="muted" id="expert-draft-status"></span><button class="secondary" id="expert-draft" type="button">Layihə hazırla</button></div></div>
             <form id="expert-form" novalidate>
               <div class="expert-form-grid">
                 <div><label for="expert-label">Ekspertin adı</label><input id="expert-label" type="text" placeholder="Məsələn: Mobil eksperti" maxlength="60" required autocomplete="off"></div>
@@ -58,6 +62,7 @@
               <label for="expert-brief">Təlimatlar</label>
               <textarea id="expert-brief" rows="5" placeholder="Bu ekspert necə işləməlidir: sərhədlər, yanaşma, yoxlama qaydaları…" required maxlength="2000"></textarea>
               <p class="field-help">Təlimatlar tapşırıq mətninə əlavə olunaraq seçilən AI agentinə ötürülür. Məxfi açarlar yazmayın.</p>
+              <input type="hidden" id="expert-notebook"><p id="expert-brain-chip" class="field-help" hidden></p>
               <div class="form-footer"><span class="muted" id="expert-count-hint">—</span><button class="primary" id="expert-submit" type="submit">Eksperti yarat ↗</button></div>
               <p id="expert-status" class="form-status" role="status"></p>
             </form>
