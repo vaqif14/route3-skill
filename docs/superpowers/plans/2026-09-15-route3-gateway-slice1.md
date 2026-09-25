@@ -1053,7 +1053,7 @@ const TYPES = new Set([
   'WEBHOOK_REJECTED', 'WEBHOOK_DUPLICATE', 'COMMAND_PARSED',
   'JOB_CREATED', 'JOB_COALESCED', 'JOB_AUTHORIZED', 'JOB_REJECTED',
   'JOB_TRANSITIONED', 'JOB_COMPLETED',
-  'PUBLICATION_STARTED', 'COMMENT_POSTED', 'COMMENT_UPDATED',
+  'PUBLICATION_STARTED', 'COMMENT_POSTED', 'COMMENT_UPDATED', 'COMMENT_ADOPTED',
   'SECURITY_EVENT',
 ]);
 
@@ -2344,6 +2344,7 @@ git commit -m "feat(gateway): guard job transitions and coalesce identical in-fl
 - Create: `app/gateway/publisher/idempotency.js`
 - Create: `app/gateway/publisher/comment.js`
 - Test: `app/test/publisher.test.js`
+- Modify: `app/gateway/audit/log.js` — add `COMMENT_ADOPTED` to the closed TYPES set. The set is an allow-list and `append` throws on anything absent from it, so the adoption path cannot record itself until the type is declared.
 
 **Interfaces:**
 - Consumes: store (Task 5); client (Task 8); audit log (Task 5).
@@ -2673,7 +2674,7 @@ Expected: PASS — 13 new tests, 0 fail.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/gateway/publisher app/test/publisher.test.js
+git add app/gateway/publisher app/gateway/audit/log.js app/test/publisher.test.js
 git commit -m "feat(gateway): publish one marker-tagged tracking comment per job, idempotently"
 ```
 
