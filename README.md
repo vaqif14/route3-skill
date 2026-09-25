@@ -71,6 +71,33 @@ unverified. Notebook text is treated as data to review, never as instructions.
 Provider approvals still apply to the agent's `nlm` calls. From Telegram, `/brain`
 lists notebooks, `/brain <n>` grounds every following `/run`, `/brain off` clears.
 
+## CLI for agents
+
+Everything the panel does is also a JSON command, which is how AI agents are
+meant to drive Route3:
+
+```bash
+route3-skill jobs start --prompt "Review src/ against the notebook" --expert x-1a2b3c4d
+route3-skill jobs wait <id>
+route3-skill night queue --prompt "…" --notebook <id> && route3-skill night schedule --on
+route3-skill experts draft --notebook <id> | route3-skill experts create --from-draft-stdin
+printf '%s' "$BOT_TOKEN" | route3-skill telegram configure --token-stdin
+```
+
+No prompts, no secrets in argv, exit codes 2/3/4 for usage / server down /
+rejected. See `skill/references/cli-client.md`.
+
+## Provider failover
+
+When an automatically routed job fails because its provider's quota, rate limit
+or session ended (`usage limit`, `429`, `401/403`, `session expired`, …), Route3
+puts that provider on a 30-minute cooldown, reruns the same task — expert, brain
+and project intact — on the next provider in the route, and notes in the brief
+that a previous attempt stopped so the agent checks the workspace before redoing
+work. The panel, `jobs wait`, Night Shift and Telegram all follow the rerouted
+job. Explicit provider choices, ordinary failures and jobs that already asked for
+an approval are never rerun automatically.
+
 ## Expert from a notebook
 
 Under **Ekspertlər → NotebookLM-dən ekspert** pick a notebook (your books and

@@ -6,7 +6,9 @@ backends. This is **orchestration policy**, not an OmniRoute install requirement
 
 ## Why these patterns
 
-Route3 already picks winners by benchmark and fails over on quota. OmniRoute adds
+Route3 already picks winners by benchmark and fails over on quota (the control
+center's JobManager does this mechanically: exhaustion output → 30 min cooldown →
+rerun on the next provider, see `cli-client.md`). OmniRoute adds
 operational semantics Route3 was missing:
 
 1. **Mode packs** — same cascade, different scoring bias per slice class

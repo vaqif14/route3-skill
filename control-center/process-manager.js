@@ -26,6 +26,10 @@ const ROUTES = {
 };
 
 const ACTIVE = new Set(['running', 'awaiting_approval']);
+// A provider that cannot serve right now: quota, rate limit, overload, expired
+// session or token. Matched only against an automatically routed job's output.
+const EXHAUSTION = /usage limit|quota|rate.?limit|too many requests|\b429\b|\b529\b|overloaded|insufficient (?:credits|quota|balance|funds)|out of credits|credit balance|billing|subscription|session (?:has )?expired|token (?:has )?expired|not (?:logged in|authenticated)|unauthori[sz]ed|\b401\b|\b403\b|please (?:log|sign) in|re-?authenticate/i;
+const EXHAUSTED_MS = 30 * 60 * 1000;
 
 function findCommand(name, env = process.env) {
   for (const directory of (env.PATH || '').split(path.delimiter).filter(Boolean)) {
@@ -109,6 +113,8 @@ class JobManager {
     this.acps = new Map();
     this.experts = options.experts || new ExpertRegistry();
     this.briefs = new Map();
+    this.prompts = new Map(); // original task text, in memory, for failover reruns
+    this.exhausted = new Map(); // agent id → timestamp until which auto-routing skips it
     this.history = new JobHistory(options.historyFile, this.workspace);
     this.historyWarning = null;
     for (const {job, brief} of this.history.read()) { this.jobs.set(job.id,job); this.briefs.set(job.id,brief); }
@@ -118,11 +124,19 @@ class JobManager {
     return Object.entries(AGENTS).map(([id, agent]) => {
       const executable = Object.hasOwn(this.commands, id) ? this.commands[id] : findCommand(agent.command || id, this.env);
       const available = Boolean(executable) && !agent.unsupported;
-      return { id, label: agent.label, available, installed: Boolean(executable), path: executable, status: !available ? (executable ? 'unsupported' : 'unavailable') : (Array.from(this.jobs.values()).some(job => job.agent === id && ACTIVE.has(job.status)) ? 'running' : 'available'), reason: agent.unsupported || (executable ? agent.installedReason || 'CLI installed; authentication and account limits are checked only when a task runs.' : 'CLI was not found on PATH.') };
+      const exhaustedUntil = this.isExhausted(id) ? new Date(this.exhausted.get(id)).toISOString() : null;
+      return { id, label: agent.label, available, installed: Boolean(executable), path: executable, exhaustedUntil, status: !available ? (executable ? 'unsupported' : 'unavailable') : exhaustedUntil ? 'exhausted' : (Array.from(this.jobs.values()).some(job => job.agent === id && ACTIVE.has(job.status)) ? 'running' : 'available'), reason: agent.unsupported || (executable ? agent.installedReason || 'CLI installed; authentication and account limits are checked only when a task runs.' : 'CLI was not found on PATH.') };
     });
   }
 
   list() { return Array.from(this.jobs.values()).reverse().map(job => ({ ...job })); }
+
+  isExhausted(id) {
+    const until = this.exhausted.get(id);
+    if (until && until > Date.now()) return true;
+    if (until) this.exhausted.delete(id);
+    return false;
+  }
 
   persist() {
     try { this.history.write(this.jobs,this.briefs); this.historyWarning = null; }
@@ -147,8 +161,9 @@ class JobManager {
     const taskClass = input.taskClass || 'code';
     if (!Object.hasOwn(ROUTES, taskClass)) throw Object.assign(new Error('Task class must be code, design, planning, or discussion.'), { statusCode: 400 });
     const automatic = input.agent === 'auto';
-    const agent = automatic ? ROUTES[taskClass].map(id => allAgents.find(item => item.id === id)).find(item => item?.available) : allAgents.find(item => item.id === input.agent);
-    if (automatic && !agent) throw Object.assign(new Error('No supported installed provider is available for automatic routing. Install a supported CLI or select an available provider manually.'), { statusCode: 409 });
+    const tried = new Set(Array.isArray(input.tried) ? input.tried : []);
+    const agent = automatic ? ROUTES[taskClass].map(id => allAgents.find(item => item.id === id)).find(item => item?.available && !this.isExhausted(item.id) && !tried.has(item.id)) : allAgents.find(item => item.id === input.agent);
+    if (automatic && !agent) throw Object.assign(new Error(`No supported installed provider is available for automatic routing${allAgents.some(item => item.available && this.isExhausted(item.id)) ? ' — every installed provider is exhausted (quota/session); they are retried after a cooldown' : ''}. Install a supported CLI or select an available provider manually.`), { statusCode: 409 });
     if (!agent) throw Object.assign(new Error('Unsupported agent.'), { statusCode: 400 });
     if (!agent.available) throw Object.assign(new Error(agent.reason), { statusCode: 409 });
     if (typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > 32768) throw Object.assign(new Error('Prompt must contain 1–32768 bytes.'), { statusCode: 400 });
@@ -172,10 +187,16 @@ class JobManager {
       const oldest = Array.from(this.jobs).find(([id, job]) => !ACTIVE.has(job.status) && !this.children.has(id));
       if (oldest) { this.jobs.delete(oldest[0]); this.briefs.delete(oldest[0]); }
     }
-    const skipped = automatic ? ROUTES[taskClass].slice(0, ROUTES[taskClass].indexOf(agent.id)).map(id => `${id} (${allAgents.find(item => item.id === id).status})`) : [];
+    const skipped = automatic ? ROUTES[taskClass].slice(0, ROUTES[taskClass].indexOf(agent.id)).map(id => `${id} (${tried.has(id) ? 'tried' : allAgents.find(item => item.id === id).status})`) : [];
     const definition = AGENTS[agent.id];
     const job = { id: crypto.randomUUID(), agent: agent.id, provider: agent.id, expert: expert?.id || null, expertLabel: expert?.label || null, brain, cwd, taskClass, routingReason: `${expert ? `Route3 expert ${expert.label}; ` : ''}${automatic ? `${taskClass} route selected ${agent.label} by installed capability; authentication unverified.${skipped.length ? ` Skipped: ${skipped.join(', ')}.` : ''}` : `Explicit provider selection: ${agent.label}; authentication unverified.`}`, sessionId: null, model: null, status: 'running', startedAt: new Date().toISOString(), endedAt: null, exitCode: null, stopReason: null, permissions: [], summary: redact(input.prompt.replace(/\s+/g, ' ')).slice(0, 180), logTail: '' };
     if (input.continuationOf && this.jobs.has(input.continuationOf)) job.continuationOf = input.continuationOf;
+    // Failover state: automatic jobs may be rerouted when their provider is exhausted.
+    job.automatic = automatic || Boolean(input.failoverFrom);
+    job.tried = [...tried];
+    job.failoverFrom = typeof input.failoverFrom === 'string' && this.jobs.has(input.failoverFrom) ? input.failoverFrom : null;
+    job.failoverTo = null;
+    this.prompts.set(job.id, input.prompt);
     this.jobs.set(job.id, job);
     this.briefs.set(job.id, clip(input.currentBrief || input.prompt,6000));
     try { this.history.write(this.jobs,this.briefs); }
@@ -202,6 +223,7 @@ class JobManager {
       job.exitCode = code;
       if (job.status === 'running') job.status = spawnError ? 'failed' : code === 0 ? 'completed' : 'failed';
       if (spawnError) job.logTail = 'Agent could not start. Check its installation and local authentication.';
+      this.maybeFailover(job);
       this.persist();
     };
     const append = data => {
@@ -262,6 +284,8 @@ class JobManager {
         job.status = error.code === 'output_limit' ? 'output_limit' : 'failed';
         job.logTail = redact(`${error.message}${acp.lastStderr ? `\n${acp.lastStderr}` : ''}`).slice(-16000) || job.logTail;
       }
+      this.acps.delete(job.id);
+      this.maybeFailover(job);
       finalize();
     });
   }
@@ -276,6 +300,29 @@ class JobManager {
     } else if (event.type === 'permission') {
       job.permissions.push({ requestId: event.requestId, title: event.title, detail: event.detail, options: event.options });
       if (job.status === 'running') job.status = 'awaiting_approval';
+      job.approvalsSeen = true; // side effects may have happened: never rerun this job automatically
+    }
+  }
+
+  // When an automatically routed job fails because its provider's quota or
+  // session ended, rerun the same task on the next provider in the route and
+  // put the exhausted provider on a cooldown. Explicit provider choices, other
+  // failures and jobs that already asked for approvals are left alone.
+  maybeFailover(job) {
+    if (job.status !== 'failed' || !job.automatic || job.failoverTo || job.approvalsSeen) return;
+    if (!EXHAUSTION.test(String(job.logTail || '').slice(-8000))) return;
+    this.exhausted.set(job.agent, Date.now() + EXHAUSTED_MS);
+    job.stopReason = 'provider_exhausted';
+    const label = AGENTS[job.agent]?.label || job.agent;
+    const original = this.prompts.get(job.id);
+    if (!original) { job.logTail = `${job.logTail || ''}\n\nRoute3: ${label} quota/session ended; the original task text is no longer available for failover.`.slice(-16000); return; }
+    const prompt = `Route3 rerouted this task: the previous attempt on ${label} (job ${job.id}) stopped because that provider's quota or session ended. Check the workspace for partial changes before redoing work, then continue the task below.\n\n${original}`;
+    try {
+      const rerouted = this.start({ agent: 'auto', prompt, taskClass: job.taskClass, cwd: job.cwd, expert: job.expert, brain: job.brain, currentBrief: this.briefs.get(job.id), failoverFrom: job.id, tried: [...job.tried, job.agent] });
+      job.failoverTo = rerouted.id;
+      job.logTail = `${job.logTail || ''}\n\nRoute3: ${label} quota/session ended — rerouted to ${AGENTS[rerouted.agent]?.label || rerouted.agent} as job ${rerouted.id}.`.slice(-16000);
+    } catch (error) {
+      job.logTail = `${job.logTail || ''}\n\nRoute3: ${label} quota/session ended; failover not started: ${error.message}`.slice(-16000);
     }
   }
 

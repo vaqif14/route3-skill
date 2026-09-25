@@ -374,6 +374,11 @@ class TelegramBridge {
     for (const [key, handle] of this.handles) if (handle.expiresAt < this.now()) this.handles.delete(key);
     for (const job of this.jobs.list()) {
       if (!this.config.tracked.includes(job.id)) continue;
+      if (job.failoverTo) {
+        const key = `failover:${job.id}`;
+        if (!this.config.notified.includes(key)) { await this.send(`${job.id} · rerouted\n${job.agent} quota/session ended. Continuing as ${job.failoverTo} on ${this.jobs.list().find(item => item.id === job.failoverTo)?.agent || 'the next provider'}; results will arrive here.`); this.mark(key); this.track(job.failoverTo); }
+        continue;
+      }
       if (!ACTIVE.has(job.status)) {
         const key = `done:${job.id}`;
         if (!this.config.notified.includes(key)) { await this.send(`${job.id} · ${job.status}\n${safe(redact(job.logTail || job.summary).slice(-3000))}\n\nContinue with /continue ${job.id} <task>`); this.mark(key); }

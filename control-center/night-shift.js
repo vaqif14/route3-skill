@@ -125,7 +125,8 @@ class NightShift {
     let changed = false;
     for (const item of this.items) {
       if (!item.jobId || !ACTIVE.has(item.status)) continue;
-      const job = this.job(item);
+      let job = this.job(item);
+      while (job?.failoverTo) { item.jobId = job.failoverTo; item.note = 'rerouted after the provider quota/session ended'; changed = true; job = this.job(item); }
       const status = !job ? 'failed' : ACTIVE.has(job.status) ? job.status : job.status === 'completed' ? 'done' : 'failed';
       if (status !== item.status) {
         item.status = status;
