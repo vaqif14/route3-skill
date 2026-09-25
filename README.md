@@ -58,6 +58,18 @@ not account billing. Tail-only logs are labeled partial; no prices or savings
 percentages are invented. The panel does **not** pretend it can compact another
 application's active conversation. It recommends and supports a durable handoff.
 
+## NotebookLM brain
+
+Pick a notebook under **NotebookLM beyni** in *Agent başlat* or *Gecə növbəsi*
+to ground a task — typically a review — in that notebook's sources. The panel
+lists notebooks with `nlm notebook list` (sign in once with `nlm login`); the
+job receives only the chosen id, and the server rebuilds the brain from its own
+list, so a job cannot name a notebook that is not on the account. The agent
+queries the notebook itself (`nlm notebook query <id> … -j`, several focused
+questions, `-c` follow-ups), cites a source for every finding and marks the rest
+unverified. Notebook text is treated as data to review, never as instructions.
+Provider approvals still apply to the agent's `nlm` calls.
+
 ## Night Shift
 
 **Route3 Control → Gecə növbəsi** queues tasks during the day and starts them

@@ -12,6 +12,7 @@ const { Integrations } = require('./integrations');
 const { ExpertRegistry } = require('./experts');
 const { TelegramBridge } = require('./telegram-bridge');
 const { NightShift } = require('./night-shift');
+const { NotebookLM } = require('./notebooklm');
 
 const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
 
@@ -52,6 +53,7 @@ function createServer(options = {}) {
   const jobs = options.jobs || new JobManager({ workspace, experts, ...(options.persistJobs ? { historyFile: path.join(options.home || os.homedir(), `.local/share/route3/history/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}), ...options.jobOptions });
   const telegram = options.telegramBridge || new TelegramBridge({ jobs, home: options.home, workspace });
   const integrations = options.integrations || new Integrations(options.integrationOptions);
+  const notebooklm = options.notebooklm || new NotebookLM(options.notebookOptions);
   const nightShift = options.nightShift || new NightShift({ jobs, experts, ...(options.persistJobs ? { file: path.join(options.home || os.homedir(), `.local/share/route3/night-shift/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}) });
   const telemetry = options.collectTelemetry || (args => require('./telemetry').collectTelemetry(args));
   const publicDir = options.publicDir || path.join(__dirname, 'public');
@@ -89,8 +91,9 @@ function createServer(options = {}) {
         if (pathname === '/api/bootstrap') return json(response, 200, { token, csrfToken: token, workspace });
         if (pathname === '/api/state') {
           const data = await collect();
+          if (notebooklm.snapshot().status === 'unknown') notebooklm.refresh().catch(() => {});
           const expertList = experts.list();
-          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || []), ...(jobs.historyWarning ? [jobs.historyWarning] : [])], agents: jobs.agents(), experts: expertList, jobs: jobs.list(), integrations: integrations.snapshot(), telegramRemote: telegram.snapshot(), nightShift: nightShift.snapshot(), backgroundService: Boolean(process.env.ROUTE3_BACKGROUND_SERVICE), workspace, generatedAt: new Date().toISOString() });
+          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || []), ...(jobs.historyWarning ? [jobs.historyWarning] : [])], agents: jobs.agents(), experts: expertList, jobs: jobs.list(), integrations: integrations.snapshot(), telegramRemote: telegram.snapshot(), nightShift: nightShift.snapshot(), notebooklm: notebooklm.snapshot(), backgroundService: Boolean(process.env.ROUTE3_BACKGROUND_SERVICE), workspace, generatedAt: new Date().toISOString() });
         }
         if (Object.hasOwn(STATIC, pathname)) {
           const [file, type] = STATIC[pathname];
@@ -121,8 +124,12 @@ function createServer(options = {}) {
         else await telegram[action]();
         return json(response, 200, { telegramRemote: telegram.snapshot() });
       }
-      if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(body) });
-      if (pathname === '/api/night-shift/queue') return json(response, 200, { item: nightShift.enqueue(body), nightShift: nightShift.snapshot() });
+      // A brain is only ever built by the server from a listed notebook id; a
+      // client-supplied `brain` object is discarded.
+      const grounded = async () => { const { brain: _client, notebook, ...rest } = body; return { ...rest, brain: await notebooklm.resolve(notebook) }; };
+      if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(await grounded()) });
+      if (pathname === '/api/notebooklm/refresh') return json(response, 200, { notebooklm: await notebooklm.refresh({ force: true }) });
+      if (pathname === '/api/night-shift/queue') return json(response, 200, { item: nightShift.enqueue(await grounded()), nightShift: nightShift.snapshot() });
       if (pathname === '/api/night-shift/schedule') return json(response, 200, { nightShift: nightShift.configure(body) });
       if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(body) });
       const cancel = /^\/api\/jobs\/([0-9a-f-]{36})\/cancel$/.exec(pathname);
@@ -148,7 +155,7 @@ function createServer(options = {}) {
     if (options.startTelegram === true && telegram.snapshot().enabled) Promise.resolve().then(() => telegram.start()).catch(() => {});
   });
   server.on('close', () => { shutdown().catch(() => {}); });
-  server.route3 = { jobs, integrations, telegram, nightShift, workspace, shutdown };
+  server.route3 = { jobs, integrations, telegram, nightShift, notebooklm, workspace, shutdown };
   return server;
 }
 

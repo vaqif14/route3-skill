@@ -1,5 +1,6 @@
-# Unreleased — Night Shift and intent fidelity
+# Unreleased — Night Shift, NotebookLM brain and intent fidelity
 
+- Add **NotebookLM beyni**: ground a job or Night Shift item in one NotebookLM notebook. The server lists notebooks via `nlm` (no shell, cached, CLI output never echoed); jobs accept only a listed notebook id and the server builds the brain itself; the brief tells the agent to query with `nlm notebook query`, cite sources and treat notebook text as data.
 - Add **Gecə növbəsi** (Night Shift) to the Mac control center: a private queue of up to 20 tasks started one at a time inside a local-time window with automatic routing, a morning report, and `caffeinate -i` only while work is pending in the window. Approvals are never answered by the shift; nothing starts after the window; running jobs are not killed.
 - Add the intent-fidelity scope gate: `check-scope.sh --lock/--gate` enforced by the Stop hook when Route3 hooks are installed.
 

@@ -49,3 +49,8 @@
 .night-item:first-child{border-top:0}
 .night-item p{margin:4px 0 0}
 .night-item pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;margin:8px 0 0;max-height:180px;overflow:auto}
+.brain-row{display:flex;gap:10px;align-items:center}
+.brain-row select{flex:1;min-width:0}
+.brain-row button{white-space:nowrap}
+.brain-field{margin-bottom:18px}
+.brain-field .field-help{margin-top:8px}

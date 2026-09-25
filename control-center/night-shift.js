@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { clip } = require('./job-history');
+const { normalizeBrain } = require('./notebooklm');
 
 // Night Shift: tasks queued during the day run one at a time inside a local-time
 // window while the owner sleeps. It is a scheduler on top of JobManager, not a
@@ -100,7 +101,8 @@ class NightShift {
       if (index < 0) break;
       this.items.splice(index, 1);
     }
-    const item = { id: crypto.randomUUID(), prompt, taskClass, expert, status: 'queued', createdAt: this.now().toISOString(), jobId: null, startedAt: null, endedAt: null, note: null };
+    const brain = normalizeBrain(input.brain);
+    const item = { id: crypto.randomUUID(), prompt, taskClass, expert, brain, status: 'queued', createdAt: this.now().toISOString(), jobId: null, startedAt: null, endedAt: null, note: null };
     this.items.push(item);
     this.persist();
     return { ...item };
@@ -139,7 +141,7 @@ class NightShift {
     const next = this.items.find(item => item.status === 'queued');
     if (open && !running && next) {
       try {
-        const job = this.jobs.start({ agent: 'auto', prompt: next.prompt, taskClass: next.taskClass, expert: next.expert || undefined });
+        const job = this.jobs.start({ agent: 'auto', prompt: next.prompt, taskClass: next.taskClass, expert: next.expert || undefined, brain: next.brain || undefined });
         Object.assign(next, { status: 'running', jobId: job.id, startedAt: job.startedAt || this.now().toISOString(), note: null });
       } catch (error) {
         if (error.statusCode === 409 && /already active/.test(error.message)) {
@@ -176,7 +178,7 @@ class NightShift {
     return this.items.filter(item => item.status !== 'queued').map(item => {
       const job = this.job(item);
       const tail = job ? (Array.isArray(job.logTail) ? job.logTail.join('\n') : job.logTail || '') : '';
-      return { id: item.id, prompt: clip(item.prompt, 200), status: item.status, agent: job?.agent || null, jobId: item.jobId,
+      return { id: item.id, prompt: clip(item.prompt, 200), status: item.status, agent: job?.agent || null, jobId: item.jobId, brain: item.brain || null,
         startedAt: item.startedAt, endedAt: item.endedAt, note: item.note, pendingApprovals: job?.permissions?.length || 0,
         tail: clip(tail.split('\n').slice(-8).join('\n'), 1200) };
     });

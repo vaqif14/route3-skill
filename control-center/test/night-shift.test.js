@@ -66,7 +66,7 @@ test('runs queued tasks one at a time, in order, with automatic routing', t => {
   night.enqueue({ prompt: 'Second task', taskClass: 'planning' });
   night.configure({ enabled: true });
   assert.equal(jobs.started.length, 1);
-  assert.deepEqual(jobs.started[0], { agent: 'auto', prompt: 'First task', taskClass: 'code', expert: undefined });
+  assert.deepEqual(jobs.started[0], { agent: 'auto', prompt: 'First task', taskClass: 'code', expert: undefined, brain: undefined });
   night.tick();
   assert.equal(jobs.started.length, 1, 'second must wait while the first runs');
   jobs.set(jobs.last().id, { status: 'completed', endedAt: new Date().toISOString() });
