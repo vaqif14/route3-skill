@@ -71,6 +71,9 @@ function help(){console.log(`Route3 — measured agent orchestration and Mac con
   route3-skill mac                    Build/install the native Mac app
   route3-skill service install|status|uninstall [--workspace PATH]
   route3-skill sessions [--cwd PATH] [--session ID]
+  route3-skill state | jobs | night | brain | experts | telegram …
+                                      JSON client for the running server (agents use this;
+                                      route3-skill jobs prints the full command list)
   route3-skill help
 
 Existing installs are backed up and local additions preserved. Model credentials
@@ -81,6 +84,7 @@ function main(argv=process.argv.slice(2)){
  if(command==='center')return run(process.execPath,[path.join(ROOT,'control-center/server.js'),...argv.slice(1)]);
  if(command==='sessions')return run(process.execPath,[path.join(ROOT,'skill/scripts/session-budget.js'),'status',...argv.slice(1)]);
  if(command==='mac')return run('/bin/bash',[path.join(ROOT,'control-center/mac/build.sh'),...argv.slice(1)]);
+ if(['state','jobs','night','brain','experts','telegram'].includes(command))return run(process.execPath,[path.join(ROOT,'control-center/cli.js'),...argv]);
  const args=parseArgs(argv);
  if(['install','i'].includes(args.cmd))return install(args);
  if(['uninstall','remove','rm'].includes(args.cmd))return uninstall(args);

@@ -86,7 +86,10 @@ Use `scripts/route-slice.sh` only for that legacy route contract; its explicit
 
 ## Mac control center and integrations
 
-Read [control-center.md](references/control-center.md) when launching or changing
+Agents drive the control center through the CLI, not the panel: `route3-skill
+state | jobs | night | brain | experts | telegram` prints JSON and never prompts
+(see [cli-client.md](references/cli-client.md)). The panel is the human view of
+the same server. Read [control-center.md](references/control-center.md) when launching or changing
 agent, OpenClaw, browser or Telegram management. The panel launches real installed
 CLIs and shows measured sessions and process results. Commands are capability
 checked; unavailable credentials or services appear as unavailable/error.
@@ -112,6 +115,7 @@ clearly replaces or cancels it.
 | Intent contract, scope audit, misread correction | `references/intent-fidelity.md` |
 | Session usage, compact, checkpoint | `references/session-governor.md` |
 | Expert selection, ownership, bounded briefs | `references/efficient-dispatch.md` |
+| CLI client for jobs, Night Shift, brain, experts, Telegram | `references/cli-client.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |
 | Telegram remote tasks, pairing, background service | `references/remote-telegram.md` |
 | Repository symbol map | `references/context-engine.md` |
