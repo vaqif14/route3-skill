@@ -90,3 +90,41 @@ test('expired approval handles do not grant permissions and watch renews them',a
  const [data,handle]=[...f.bridge.handles][0];handle.expiresAt=0;await f.bridge.callback({id:'q',data,from:{id:42},message:{chat:{id:42,type:'private'}}});assert.equal(f.permissions.length,0);
  await f.bridge.dispatch(f.message('/watch job-1'));await f.bridge.notifyJobs();assert.ok([...f.bridge.handles.keys()].some(key=>key!==data));
 });
+
+const NB_A='11111111-2222-4333-8444-555555555555', NB_B='66666666-7777-4888-9999-aaaaaaaaaaaa';
+function fakeNotebooklm(available=[NB_A,NB_B]){
+  const notebooks=[{id:NB_A,title:'Product rules',sources:3},{id:NB_B,title:'Security playbooks',sources:1}];
+  return {refreshes:0,async refresh(){this.refreshes++;return {status:'ready',notebooks:notebooks.map(n=>({...n}))};},
+    async resolve(id){const n=notebooks.find(n=>n.id===id&&available.includes(id));if(!n)throw Object.assign(new Error('not available'),{statusCode:400});return {id:n.id,title:n.title};}};
+}
+test('/brain is explicit about a Mac without NotebookLM and /run stays plain',async t=>{
+  const f=fixture(t);await f.pair();await f.bridge.dispatch(f.message('/brain'));
+  assert.match(f.calls.filter(c=>c.method==='sendMessage').pop().body.text,/not available on this Mac/);
+  await f.bridge.dispatch(f.message('/run plain task'));assert.equal(f.started[0].brain,null);
+});
+test('/brain lists, selects by number, persists, grounds /run, and /brain off clears',async t=>{
+  const notebooklm=fakeNotebooklm();const f=fixture(t,{options:{notebooklm}});await f.pair();
+  const last=()=>f.calls.filter(c=>c.method==='sendMessage').pop().body.text;
+  await f.bridge.dispatch(f.message('/brain'));assert.match(last(),/No brain selected[\s\S]*1\. Product rules \(3 sources\)\n2\. Security playbooks/);
+  await f.bridge.dispatch(f.message('/brain 2'));assert.match(last(),/Brain set: Security playbooks/);
+  assert.deepEqual(f.bridge.snapshot().brain,{id:NB_B,title:'Security playbooks'});
+  await f.bridge.dispatch(f.message('/run review the playbooks for gaps'));
+  assert.deepEqual(f.started[0].brain,{id:NB_B,title:'Security playbooks'});assert.match(last(),/Brain: Security playbooks/);
+  await f.bridge.dispatch(f.message('/status'));assert.match(last(),/Brain: Security playbooks/);
+  const restored=new TelegramBridge({jobs:f.manager,notebooklm,home:f.home,fetchImpl:f.bridge.fetch});
+  assert.deepEqual(restored.config.brain,{id:NB_B,title:'Security playbooks'});await restored.shutdown();
+  await f.bridge.dispatch(f.message('/brain 9'));assert.match(last(),/Notebook not found/);
+  await f.bridge.dispatch(f.message(`/brain ${NB_A.toUpperCase()}`));assert.match(last(),/Brain set: Product rules/);
+  await f.bridge.dispatch(f.message('/brain off'));assert.match(last(),/Brain cleared/);
+  await f.bridge.dispatch(f.message('/run plain again'));assert.equal(f.started[1].brain,null);
+});
+test('a brain that disappeared from the account blocks /run with a hint; tampered saved brain loads as none',async t=>{
+  const notebooklm=fakeNotebooklm([NB_A]);const f=fixture(t,{options:{notebooklm}});await f.pair();
+  const last=()=>f.calls.filter(c=>c.method==='sendMessage').pop().body.text;
+  await f.bridge.dispatch(f.message('/brain 2'));await f.bridge.dispatch(f.message('/run should not start'));
+  assert.equal(f.started.length,0);assert.match(last(),/not available on this Mac right now/);
+  const file=path.join(f.home,'.local/share/route3/telegram/config.json');
+  const saved=JSON.parse(fs.readFileSync(file,'utf8'));saved.brain={id:'../../evil',title:'x'};fs.writeFileSync(file,JSON.stringify(saved));
+  const reloaded=new TelegramBridge({jobs:f.manager,notebooklm,home:f.home,fetchImpl:f.bridge.fetch});
+  assert.equal(reloaded.config.brain,null);await reloaded.shutdown();
+});

@@ -33,6 +33,10 @@ quotas still govern whether an agent can execute work.
 - `/continue ID TASK`: wait for a terminal job, then start a new provider session
   with its bounded task brief and recent output. Preserves provider and expert.
 - `/cancel ID`: cancel an owned Route3 job.
+- `/brain`: list the Mac's NotebookLM notebooks; `/brain <n>` (or a notebook id)
+  makes every following `/run` a grounded task in that notebook, `/brain off`
+  clears it. The choice is saved with the bot config and re-checked against the
+  live notebook list at each `/run`; a removed notebook blocks the run with a hint.
 - `/status`, `/help`: connection/provider discovery and command help.
 
 Continuation does not attach to ChatGPT, edit transcripts or promise native host

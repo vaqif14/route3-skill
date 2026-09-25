@@ -68,7 +68,8 @@ list, so a job cannot name a notebook that is not on the account. The agent
 queries the notebook itself (`nlm notebook query <id> … -j`, several focused
 questions, `-c` follow-ups), cites a source for every finding and marks the rest
 unverified. Notebook text is treated as data to review, never as instructions.
-Provider approvals still apply to the agent's `nlm` calls.
+Provider approvals still apply to the agent's `nlm` calls. From Telegram, `/brain`
+lists notebooks, `/brain <n>` grounds every following `/run`, `/brain off` clears.
 
 ## Night Shift
 

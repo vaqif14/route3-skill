@@ -5,8 +5,9 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { redact, equalToken } = require('./security');
+const { normalizeBrain } = require('./notebooklm');
 const ACTIVE = new Set(['running', 'awaiting_approval']);
-const HELP = '/status — Mac and agent status\n/jobs — recent jobs\n/run <task> — start a task in the configured project\n/continue <job-id> <task> — new session with a bounded handoff\n/watch <job-id> — follow a running panel task and its approvals\n/cancel <job-id> — cancel a task\n/help — commands';
+const HELP = '/status — Mac and agent status\n/jobs — recent jobs\n/run <task> — start a task in the configured project\n/continue <job-id> <task> — new session with a bounded handoff\n/watch <job-id> — follow a running panel task and its approvals\n/cancel <job-id> — cancel a task\n/brain — list NotebookLM notebooks; /brain <n> grounds every /run in one, /brain off clears\n/help — commands';
 const safe = value => redact(value).slice(0, 3900);
 
 class TelegramError extends Error {
@@ -18,9 +19,10 @@ class TelegramError extends Error {
 }
 
 class TelegramBridge {
-  constructor({ jobs, home = os.homedir(), workspace, fetchImpl = globalThis.fetch, now = Date.now, pollTimeout = 25, monitorMs = 1500, retryMs = 1000 } = {}) {
+  constructor({ jobs, notebooklm = null, home = os.homedir(), workspace, fetchImpl = globalThis.fetch, now = Date.now, pollTimeout = 25, monitorMs = 1500, retryMs = 1000 } = {}) {
     if (!jobs) throw new Error('Telegram requires a job manager.');
     this.jobs = jobs;
+    this.notebooklm = notebooklm;
     this.workspace = workspace || jobs.workspace || process.cwd();
     this.fetch = fetchImpl;
     this.now = now;
@@ -51,10 +53,12 @@ class TelegramBridge {
     this.pairCode = null;
     this.lock = null;
     this.lifecycle = Promise.resolve();
+    // The saved brain is re-validated; a tampered or stale entry becomes "none".
+    try { this.config.brain = normalizeBrain(this.config.brain); } catch { this.config.brain = null; }
   }
 
   snapshot() {
-    return { configured: Boolean(this.config.token), enabled: Boolean(this.config.enabled), status: this.status, error: this.error, bot: this.config.bot ? { id: this.config.bot.id, username: this.config.bot.username } : null, paired: this.config.paired ? { userId: this.config.paired.userId, chatId: this.config.paired.chatId } : null };
+    return { configured: Boolean(this.config.token), enabled: Boolean(this.config.enabled), status: this.status, error: this.error, brain: this.config.brain ? { ...this.config.brain } : null, bot: this.config.bot ? { id: this.config.bot.id, username: this.config.bot.username } : null, paired: this.config.paired ? { userId: this.config.paired.userId, chatId: this.config.paired.chatId } : null };
   }
 
   save() {
@@ -295,14 +299,21 @@ class TelegramBridge {
     if (!this.authorized(message.from, message.chat) || message.date * 1000 < this.config.paired.pairedAt - 1000) return;
     if (command === 'help' || command === 'start') return this.send(HELP);
     const jobs = this.jobs.list();
-    if (command === 'status') return this.send(`Route3 is online. ${jobs.filter(job => ACTIVE.has(job.status)).length} active job(s).\n${this.jobs.agents().map(agent => `${agent.label}: ${agent.status}`).join('\n')}`);
+    if (command === 'status') return this.send(`Route3 is online. ${jobs.filter(job => ACTIVE.has(job.status)).length} active job(s).\nBrain: ${this.config.brain ? safe(this.config.brain.title) : 'none'}\n${this.jobs.agents().map(agent => `${agent.label}: ${agent.status}`).join('\n')}`);
+    if (command === 'brain') return this.brain(argument);
     if (command === 'jobs') return this.send(jobs.slice(0, 12).map(job => `${job.id}\n${job.agent} · ${job.status}\n${safe(job.summary).slice(0, 160)}`).join('\n\n') || 'No jobs yet. Use /run <task>.');
     try {
       if (command === 'run') {
         if (!argument || Buffer.byteLength(argument) > 16000) return this.send('Use /run <task> with up to 16000 bytes.');
-        const job = await this.jobs.start({ agent: 'auto', taskClass: 'code', cwd: this.workspace, prompt: argument });
+        // The saved brain is resolved against the Mac's current notebook list at run time.
+        let brain = null;
+        if (this.config.brain) {
+          try { brain = await this.notebooklm?.resolve(this.config.brain.id); } catch { brain = null; }
+          if (!brain) return this.send(`The selected brain "${safe(this.config.brain.title)}" is not available on this Mac right now. Send /brain to choose another or /brain off, then /run again.`);
+        }
+        const job = await this.jobs.start({ agent: 'auto', taskClass: 'code', cwd: this.workspace, prompt: argument, brain });
         this.track(job.id);
-        return this.send(`Started ${job.id}\n${job.agent}\n${job.summary}`);
+        return this.send(`Started ${job.id}\n${job.agent}${brain ? `\nBrain: ${safe(brain.title)}` : ''}\n${job.summary}`);
       }
       if (command === 'continue') {
         const parts = argument.match(/^(\S+)\s+([\s\S]+)$/);
@@ -323,6 +334,26 @@ class TelegramBridge {
       }
       return this.send(HELP);
     } catch { return this.send('The command could not be completed. Check the job and provider status in the local Route3 panel.'); }
+  }
+
+  // /brain: list notebooks, pick one by number or id, or clear. Selection is
+  // persisted with the bot config (private, 0600) and re-resolved on every /run.
+  async brain(argument) {
+    if (!this.notebooklm) return this.send('NotebookLM is not available on this Mac. Install nlm and sign in with nlm login, then restart Route3.');
+    if (argument.toLowerCase() === 'off') { this.config.brain = null; this.save(); return this.send('Brain cleared. /run starts plain tasks.'); }
+    const state = await this.notebooklm.refresh({ force: !argument });
+    const list = state.notebooks || [];
+    if (!argument) {
+      if (!list.length) return this.send(state.status === 'ready' ? 'No NotebookLM notebooks on this account.' : 'NotebookLM is not signed in on the Mac. Run nlm login there, then send /brain again.');
+      const current = this.config.brain ? `Current brain: ${safe(this.config.brain.title)}` : 'No brain selected.';
+      return this.send(`${current}\n\n${list.slice(0, 20).map((item, index) => `${index + 1}. ${safe(item.title)}${Number.isInteger(item.sources) ? ` (${item.sources} sources)` : ''}`).join('\n')}\n\nUse /brain <number> to select, /brain off to clear.`);
+    }
+    const index = /^\d{1,2}$/.test(argument) ? Number(argument) - 1 : -1;
+    const chosen = index >= 0 ? list[index] : list.find(item => item.id === argument.toLowerCase());
+    if (!chosen) return this.send('Notebook not found. Send /brain to list them.');
+    this.config.brain = { id: chosen.id, title: chosen.title };
+    this.save();
+    return this.send(`Brain set: ${safe(chosen.title)}\nEvery /run now grounds its task in this notebook. /brain off to clear.`);
   }
 
   track(id) {

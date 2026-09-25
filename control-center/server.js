@@ -51,9 +51,9 @@ function createServer(options = {}) {
   if (!fs.statSync(workspace).isDirectory()) throw new Error('Workspace must be a directory.');
   const experts = options.experts || new ExpertRegistry({ home: options.home });
   const jobs = options.jobs || new JobManager({ workspace, experts, ...(options.persistJobs ? { historyFile: path.join(options.home || os.homedir(), `.local/share/route3/history/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}), ...options.jobOptions });
-  const telegram = options.telegramBridge || new TelegramBridge({ jobs, home: options.home, workspace });
-  const integrations = options.integrations || new Integrations(options.integrationOptions);
   const notebooklm = options.notebooklm || new NotebookLM(options.notebookOptions);
+  const telegram = options.telegramBridge || new TelegramBridge({ jobs, notebooklm, home: options.home, workspace });
+  const integrations = options.integrations || new Integrations(options.integrationOptions);
   const nightShift = options.nightShift || new NightShift({ jobs, experts, ...(options.persistJobs ? { file: path.join(options.home || os.homedir(), `.local/share/route3/night-shift/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}) });
   const telemetry = options.collectTelemetry || (args => require('./telemetry').collectTelemetry(args));
   const publicDir = options.publicDir || path.join(__dirname, 'public');
