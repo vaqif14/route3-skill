@@ -1,3 +1,7 @@
+# Unreleased — Night Shift
+
+- Add **Gecə növbəsi** (Night Shift) to the Mac control center: a private queue of up to 20 tasks started one at a time inside a local-time window with automatic routing, a morning report, and `caffeinate -i` only while work is pending in the window. Approvals are never answered by the shift; nothing starts after the window; running jobs are not killed.
+
 # 2.1.0 — Continue from Telegram
 
 - Add a dedicated Telegram bot bridge with private local credentials, expiring one-use pairing, exact private-chat authorization and project binding.

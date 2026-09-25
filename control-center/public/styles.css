@@ -36,3 +36,16 @@
 @media(max-width:700px) { .telegram-commands div { grid-template-columns:1fr; gap:6px; } }
 
 #telegram-message { color:var(--muted); }
+.night-form{padding:0;margin-top:14px}
+.night-form .night-toggle{display:flex;align-items:center;gap:8px}
+.night-form .night-toggle input{accent-color:var(--accent);margin:0;width:auto}
+.night-times{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.night-times label{font-size:12px;font-weight:600;display:block;margin-bottom:8px}
+.night-times input{width:100%;min-width:0;border:1px solid var(--line);border-radius:7px;background:var(--bg);padding:10px 12px;font-size:12px}
+.night-form>textarea{min-height:110px}
+.night-form>select{margin-bottom:18px}
+#view-night>.panel+.panel{margin-top:18px}
+.night-item{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.night-item:first-child{border-top:0}
+.night-item p{margin:4px 0 0}
+.night-item pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;margin:8px 0 0;max-height:180px;overflow:auto}

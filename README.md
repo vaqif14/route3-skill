@@ -58,6 +58,18 @@ not account billing. Tail-only logs are labeled partial; no prices or savings
 percentages are invented. The panel does **not** pretend it can compact another
 application's active conversation. It recommends and supports a durable handoff.
 
+## Night Shift
+
+**Route3 Control → Gecə növbəsi** queues tasks during the day and starts them
+one at a time inside a local-time window (default 23:00–07:00) with automatic
+provider routing. Approvals are never given on your behalf: a job that asks
+waits for you in the panel or on Telegram, while the next task may use the free
+slot. No new job starts after the window closes and running jobs are not
+killed; the morning report shows each task's result and output tail. While work
+is pending in the window, `caffeinate -i` prevents idle sleep (no system setting
+changes; a closed lid on battery still sleeps). Keep the app open or install the
+background service.
+
 ## Continue from Telegram
 
 Build/install Route3, then enable the background service for your project:

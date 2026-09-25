@@ -120,9 +120,16 @@ Window: 5h.
 
 Legacy: "night-shift", "yatanda bitir".
 
-- State: `.workflow/night-shift/STATE.json` + `QUEUE.json`
-- Scripts: `scripts/night-shift-swarm.sh` (`start` = queue only;
-  `run-loop` needs `NIGHT_SHIFT_AUTO=1` + `NIGHT_SHIFT_I_UNDERSTAND=1`)
+- **Runner:** Mac control center → **Gecə növbəsi** (`control-center/night-shift.js`).
+  Queue up to 20 tasks; the server starts them one at a time with automatic
+  routing inside a local-time window (default 23:00–07:00). Provider approvals
+  are never answered by the shift — they wait in Tapşırıqlar or Telegram
+  (`/watch ID`). Nothing new starts after the window; running jobs are not
+  killed. `caffeinate -i` keeps the Mac from idle sleep only while work is
+  pending inside the window. Requires the server (app or LaunchAgent) running.
+- State: private `~/.local/share/route3/night-shift/<workspace-hash>.json`;
+  morning report in the panel. `scripts/night-shift-swarm.sh` does not exist —
+  do not invoke it.
 - Per item: FREEZE → PLAN → CODE → DIFF_REVIEW → VERIFY → DELIVER
 - **Factory:** if `classify-risk` → `class=factory`, queue item **MUST** include
   `factory_run_id` (set via `init-run.sh --overnight-item` or `link-overnight.sh`)

@@ -22,6 +22,7 @@
       <button class="nav-button" data-view="jobs"><span aria-hidden="true">≡</span>Tapşırıqlar <span class="nav-count" id="job-count">—</span></button>
       <button class="nav-button" data-view="integrations"><span aria-hidden="true">⌘</span>İnteqrasiyalar</button>
       <button class="nav-button" data-view="telegram"><span aria-hidden="true">↗</span>Telegram ilə davam et</button>
+      <button class="nav-button" data-view="night"><span aria-hidden="true">☾</span>Gecə növbəsi <span class="nav-count" id="night-count">—</span></button>
     </nav>
     <div class="sidebar-bottom"><div class="connection"><span class="dot" id="connection-dot"></span><span id="connection-label">Qoşulur…</span></div><p>Bu Mac üzərində lokal idarəetmə</p><label class="theme-control" for="theme">Görünüş<select id="theme"><option value="system">Sistem</option><option value="light">Açıq</option><option value="dark">Tünd</option></select></label></div>
   </aside>
@@ -88,6 +89,31 @@
           <dl class="telegram-commands"><div><dt><code>/run tapşırıq</code></dt><dd>Route3 uyğun agent seçib bu layihədə yeni iş başladır.</dd></div><div><dt><code>/continue iş-id təlimat</code></dt><dd>Əvvəlki işin qısa xülasəsi ilə yeni agent sessiyası başladır.</dd></div><div><dt><code>/watch iş-id</code></dt><dd>Mac-də başladılmış işin nəticə və icazələrini telefonda izləyir.</dd></div><div><dt><code>/status</code></dt><dd>Bağlantı və agentlərin vəziyyətini göstərir.</dd></div><div><dt><code>/jobs</code></dt><dd>İşlərin identifikatorlarını və vəziyyətini göstərir.</dd></div><div><dt><code>/cancel iş-id</code></dt><dd>Seçilmiş işi dayandırır.</dd></div></dl>
           <p class="footnote">Mac yuxuya gedəndə və ya internet kəsiləndə bağlantı dayanır. Fon xidməti quraşdırılıbsa, giriş etdikdən sonra avtomatik başlayır. Terminalda <code>route3-skill service status</code> ilə yoxlayın. Bu Route3 bağlantısı İnteqrasiyalar bölməsindəki OpenClaw Telegram kanalından ayrıdır.</p>
         </article>
+      </section>
+      <section class="view" id="view-night" aria-labelledby="night-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">GECƏ NÖVBƏSİ</p><h1 id="night-heading">Siz yatarkən iş davam edir.</h1><p>Tapşırıqları gündüz növbəyə qoyun — Route3 onları gecə pəncərəsində bir-bir başladır. Təsdiqlər heç vaxt sizin əvəzinizə verilmir.</p></div></div>
+        <div class="overview-grid">
+          <article class="panel"><div class="panel-heading"><div><h2>Cədvəl</h2><p>Bu Mac-in yerli vaxtı. Pəncərə gecəyarısını keçə bilər.</p></div><span class="badge" id="night-status">—</span></div>
+            <form id="night-schedule-form" class="form-panel night-form">
+              <label class="night-toggle" for="night-enabled"><input id="night-enabled" type="checkbox">Gecə növbəsi aktivdir</label>
+              <div class="night-times"><div><label for="night-start">Başlama</label><input id="night-start" type="time" required></div><div><label for="night-end">Bitmə</label><input id="night-end" type="time" required></div></div>
+              <div class="form-footer"><span class="muted" id="night-awake"></span><button class="primary" id="night-save" type="submit">Cədvəli saxla</button></div>
+            </form>
+            <p id="night-schedule-status" class="form-status" role="status"></p>
+            <p class="footnote">Pəncərə daxilində iş varsa, Route3 Mac-in boşda yuxuya getməsinin qarşısını alır (<code>caffeinate</code>, sistem ayarı dəyişmir). Qapaq bağlı və batareyada olanda Mac yenə yuxuya gedir. Tətbiq bağlıdırsa, fon xidməti quraşdırılmalıdır. Pəncərə bitəndə yeni iş başlamır, işləyən iş dayandırılmır.</p>
+          </article>
+          <article class="panel"><div class="panel-heading"><div><h2>Növbəyə əlavə et</h2><p>Hər tapşırıq ayrıca agent işi kimi, avtomatik agent seçimi ilə başlayır.</p></div></div>
+            <form id="night-queue-form" class="form-panel night-form">
+              <label for="night-task-class">İşin növü</label><select id="night-task-class"><option value="code">Kod və yoxlama</option><option value="design">Dizayn və interfeys</option><option value="planning">Planlaşdırma</option><option value="discussion">Müzakirə və analiz</option></select>
+              <label for="night-expert">Ekspert</label><select id="night-expert"><option value="">Ümumi agent — ekspert təyin etmə</option></select>
+              <label for="night-prompt">Tapşırıq</label><textarea id="night-prompt" rows="5" required minlength="3" maxlength="32768" placeholder="Məqsəd, dəyişə biləcəyi fayllar və yoxlama əmri…"></textarea>
+              <div class="form-footer"><span class="muted" id="night-queue-count"></span><button class="primary" id="night-add" type="submit">Növbəyə qoy</button></div>
+            </form>
+            <p id="night-queue-status" class="form-status" role="status"></p>
+          </article>
+        </div>
+        <article class="panel"><div class="panel-heading"><div><h2>Növbə</h2><p>Sıra ilə başlayacaq tapşırıqlar</p></div></div><div id="night-queue"></div></article>
+        <article class="panel"><div class="panel-heading"><div><h2>Səhər hesabatı</h2><p>Növbədən çıxan hər tapşırığın nəticəsi. Təsdiq gözləyənləri Tapşırıqlar bölməsində və ya Telegram-da <code>/watch</code> ilə cavablandırın.</p></div></div><div id="night-report"></div></article>
       </section>
     </main>
   </div>
