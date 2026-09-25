@@ -27,8 +27,22 @@ const ROUTES = {
 
 const ACTIVE = new Set(['running', 'awaiting_approval']);
 // A provider that cannot serve right now: quota, rate limit, overload, expired
-// session or token. Matched only against an automatically routed job's output.
-const EXHAUSTION = /usage limit|quota|rate.?limit|too many requests|\b429\b|\b529\b|overloaded|insufficient (?:credits|quota|balance|funds)|out of credits|credit balance|billing|subscription|session (?:has )?expired|token (?:has )?expired|not (?:logged in|authenticated)|unauthori[sz]ed|\b401\b|\b403\b|please (?:log|sign) in|re-?authenticate/i;
+// session or token. Phrasal on purpose, and matched only against a failed
+// auto-routed job's stderr and structured error events — never against the
+// agent's own stdout text, which may legitimately discuss billing or 403s.
+const EXHAUSTION = /usage limit(?: (?:reached|exceeded|hit))?|(?:quota|rate.?limit)(?: has been| was| is)? (?:exceeded|reached|hit|exhausted)|too many requests|\b429\b|resource[_ ]exhausted|\b529\b|overloaded_error|insufficient[_ ](?:credits|quota|balance|funds)|out of credits|credit balance (?:is )?too low|(?:session|token|credentials?|login) (?:has |have )?expired|not (?:logged in|authenticated|signed in)|authentication (?:required|failed|error)|\b401\b|\b403\b[^\n]{0,40}(?:forbidden|permission|access)|(?:unauthorized|forbidden)[^\n]{0,40}\b(?:401|403)\b|please (?:log|sign) in|re-?authenticate|invalid (?:api[_ ]key|token)/i;
+// Tool, file or command activity in a provider's event stream: once seen, a job
+// is never rerun automatically because the workspace may already have changed.
+const SIDE_EFFECT = /^(?:tool_use|tool_call|tool_result|command_execution|local_shell_call|function_call|file_change|exec_command_begin|patch_apply_begin|apply_patch|shell|bash|write_file|edit_file|run_shell_command|replace|write|edit|multiedit|notebookedit)$/i;
+const FAILOVER_MAX_BYTES = 8192, FAILOVER_MAX_MS = 90 * 1000;
+function touchesWorkspace(event, depth = 0) {
+  if (!event || typeof event !== 'object' || depth > 4) return false;
+  for (const [key, value] of Object.entries(event)) {
+    if (typeof value === 'string' && /^(?:type|name|kind|tool|subtype|tool_name)$/.test(key) && SIDE_EFFECT.test(value)) return true;
+    if (value && typeof value === 'object' && touchesWorkspace(value, depth + 1)) return true;
+  }
+  return false;
+}
 const EXHAUSTED_MS = 30 * 60 * 1000;
 
 function findCommand(name, env = process.env) {
@@ -185,7 +199,7 @@ class JobManager {
     if (cwd !== this.workspace && !cwd.startsWith(this.workspace + path.sep)) throw Object.assign(new Error('Project directory must be inside the configured workspace. Relaunch Route3 from the desired project.'), { statusCode: 403 });
     if (this.jobs.size >= 100) {
       const oldest = Array.from(this.jobs).find(([id, job]) => !ACTIVE.has(job.status) && !this.children.has(id));
-      if (oldest) { this.jobs.delete(oldest[0]); this.briefs.delete(oldest[0]); }
+      if (oldest) { this.jobs.delete(oldest[0]); this.briefs.delete(oldest[0]); this.prompts.delete(oldest[0]); }
     }
     const skipped = automatic ? ROUTES[taskClass].slice(0, ROUTES[taskClass].indexOf(agent.id)).map(id => `${id} (${tried.has(id) ? 'tried' : allAgents.find(item => item.id === id).status})`) : [];
     const definition = AGENTS[agent.id];
@@ -196,7 +210,9 @@ class JobManager {
     job.tried = [...tried];
     job.failoverFrom = typeof input.failoverFrom === 'string' && this.jobs.has(input.failoverFrom) ? input.failoverFrom : null;
     job.failoverTo = null;
-    this.prompts.set(job.id, input.prompt);
+    job.sideEffects = false;
+    job.errorTail = '';
+    this.prompts.set(job.id, typeof input.original === 'string' ? input.original : input.prompt);
     this.jobs.set(job.id, job);
     this.briefs.set(job.id, clip(input.currentBrief || input.prompt,6000));
     try { this.history.write(this.jobs,this.briefs); }
@@ -211,7 +227,8 @@ class JobManager {
     const call = invocation(agent.path, definition.args, this.env);
     const child = spawn(call.command, call.args, { shell: false, cwd: job.cwd, env: call.env, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
     this.children.set(job.id, child);
-    let bytes = 0, rawTail = '', eventBuffer = '', finished = false;
+    let bytes = 0, rawTail = '', eventBuffer = '', finished = false, stderrTail = '';
+    const startedAt = Date.now();
     const timer = setTimeout(() => this.cancel(job.id, 'timed_out'), this.timeoutMs);
     timer.unref();
     const finish = (code, spawnError) => {
@@ -223,11 +240,13 @@ class JobManager {
       job.exitCode = code;
       if (job.status === 'running') job.status = spawnError ? 'failed' : code === 0 ? 'completed' : 'failed';
       if (spawnError) job.logTail = 'Agent could not start. Check its installation and local authentication.';
-      this.maybeFailover(job);
+      job.errorTail = redact(stderrTail + (job.errorTail ? `\n${job.errorTail}` : '')).slice(-4000);
+      this.maybeFailover(job, { bytes, elapsedMs: Date.now() - startedAt });
       this.persist();
     };
-    const append = data => {
+    const append = (data, stream) => {
       bytes += data.length;
+      if (stream === 'stderr') stderrTail = (stderrTail + data.toString('utf8')).slice(-4000);
       rawTail = (rawTail + data.toString('utf8')).slice(-20000);
       job.logTail = redact(rawTail).slice(-16000);
       eventBuffer += data.toString('utf8');
@@ -239,12 +258,16 @@ class JobManager {
           const sessionId = event.thread_id || event.session_id || event.sessionId;
           if (typeof sessionId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) job.sessionId = sessionId;
           if (typeof event.model === 'string' && event.model.length < 150) job.model = redact(event.model);
+          if (!job.sideEffects && touchesWorkspace(event)) job.sideEffects = true;
+          // Structured provider errors (codex `error`, claude `is_error` results, gemini `error`).
+          const structuredError = event.type === 'error' ? (event.message || event.error?.message || event.error) : event.is_error ? (event.result || event.error) : event.item?.type === 'error' ? event.item.message : null;
+          if (typeof structuredError === 'string') job.errorTail = `${job.errorTail || ''}\n${structuredError}`.slice(-2000);
         } catch { /* log lines are not always structured events */ }
       }
       if (bytes > this.maxOutputBytes && job.status === 'running') this.cancel(job.id, 'output_limit');
     };
-    child.stdout.on('data', append);
-    child.stderr.on('data', append);
+    child.stdout.on('data', data => append(data, 'stdout'));
+    child.stderr.on('data', data => append(data, 'stderr'));
     child.on('error', () => finish(null, true));
     child.on('close', code => finish(code, false));
     child.stdin.on('error', () => { /* early CLI rejection; close reports failure */ });
@@ -285,12 +308,16 @@ class JobManager {
         job.logTail = redact(`${error.message}${acp.lastStderr ? `\n${acp.lastStderr}` : ''}`).slice(-16000) || job.logTail;
       }
       this.acps.delete(job.id);
-      this.maybeFailover(job);
+      job.errorTail = job.logTail; // ACP failures surface only the error text
       finalize();
+      // The concurrency slot frees when the owned process exits; only then can a rerun start.
+      const attempt = () => this.maybeFailover(job, { bytes: (job.logTail || '').length, elapsedMs: Date.now() - Date.parse(job.startedAt) });
+      if (this.children.has(job.id) && acp.child) acp.child.once('close', attempt); else attempt();
     });
   }
 
   acpEvent(job, event, append) {
+    if (!job.sideEffects && (event.type === 'tool' || touchesWorkspace(event))) job.sideEffects = true;
     if (event.type === 'session') {
       if (/^[A-Za-z0-9_-]{1,128}$/.test(event.sessionId)) job.sessionId = event.sessionId;
     } else if (event.type === 'message' || event.type === 'tool') {
@@ -308,17 +335,23 @@ class JobManager {
   // session ended, rerun the same task on the next provider in the route and
   // put the exhausted provider on a cooldown. Explicit provider choices, other
   // failures and jobs that already asked for approvals are left alone.
-  maybeFailover(job) {
-    if (job.status !== 'failed' || !job.automatic || job.failoverTo || job.approvalsSeen) return;
-    if (!EXHAUSTION.test(String(job.logTail || '').slice(-8000))) return;
+  maybeFailover(job, { bytes = 0, elapsedMs = 0 } = {}) {
+    if (job.status !== 'failed' || !job.automatic || job.failoverTo) return;
+    if (!EXHAUSTION.test(String(job.errorTail || ''))) return;
     this.exhausted.set(job.agent, Date.now() + EXHAUSTED_MS);
     job.stopReason = 'provider_exhausted';
     const label = AGENTS[job.agent]?.label || job.agent;
+    // Only a job that demonstrably did not touch the workspace is rerun: no
+    // tool/file/command events, no approval requests, and little output or time.
+    if (job.approvalsSeen || job.sideEffects || (bytes >= FAILOVER_MAX_BYTES && elapsedMs >= FAILOVER_MAX_MS)) {
+      job.logTail = `${job.logTail || ''}\n\nRoute3: ${label} quota/session ended after this job had already acted (${job.sideEffects || job.approvalsSeen ? 'tool or approval activity seen' : 'long run with output'}). Not rerun automatically — review the workspace, then continue it (jobs start / /continue) on another provider.`.slice(-16000);
+      return;
+    }
     const original = this.prompts.get(job.id);
     if (!original) { job.logTail = `${job.logTail || ''}\n\nRoute3: ${label} quota/session ended; the original task text is no longer available for failover.`.slice(-16000); return; }
     const prompt = `Route3 rerouted this task: the previous attempt on ${label} (job ${job.id}) stopped because that provider's quota or session ended. Check the workspace for partial changes before redoing work, then continue the task below.\n\n${original}`;
     try {
-      const rerouted = this.start({ agent: 'auto', prompt, taskClass: job.taskClass, cwd: job.cwd, expert: job.expert, brain: job.brain, currentBrief: this.briefs.get(job.id), failoverFrom: job.id, tried: [...job.tried, job.agent] });
+      const rerouted = this.start({ agent: 'auto', prompt, original, taskClass: job.taskClass, cwd: job.cwd, expert: job.expert, brain: job.brain, currentBrief: this.briefs.get(job.id), failoverFrom: job.id, tried: [...job.tried, job.agent] });
       job.failoverTo = rerouted.id;
       job.logTail = `${job.logTail || ''}\n\nRoute3: ${label} quota/session ended — rerouted to ${AGENTS[rerouted.agent]?.label || rerouted.agent} as job ${rerouted.id}.`.slice(-16000);
     } catch (error) {

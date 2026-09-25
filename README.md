@@ -95,8 +95,11 @@ puts that provider on a 30-minute cooldown, reruns the same task — expert, bra
 and project intact — on the next provider in the route, and notes in the brief
 that a previous attempt stopped so the agent checks the workspace before redoing
 work. The panel, `jobs wait`, Night Shift and Telegram all follow the rerouted
-job. Explicit provider choices, ordinary failures and jobs that already asked for
-an approval are never rerun automatically.
+job. The signature is read only from the provider's stderr and structured error
+events — never from the agent's own text — and a job that already ran a tool,
+changed a file or asked for an approval is never rerun automatically (its log
+says so; continue it by hand). Explicit provider choices and ordinary failures
+are left alone too.
 
 ## Expert from a notebook
 

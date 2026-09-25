@@ -129,3 +129,51 @@ test('Night Shift and Telegram follow a rerouted job', async t => {
   assert.ok(sent.some(text => text.startsWith('job-2 · completed')));
   assert.equal(sent.filter(text => /rerouted/.test(text)).length, 1);
 });
+
+test('review regressions: exhaustion is read from stderr/structured errors only; workspace activity blocks a rerun', async t => {
+  // A healthy provider whose own stdout discusses billing and 403s, then a plain test failure.
+  const chatty = fixture(t, { codexScript: `process.stdin.resume();process.stdin.on('end',()=>{console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'Implemented the subscription billing page; GET /admin returns 403 Forbidden as required. quota exceeded handling added.'}}));console.error('npm test exited 1');process.exit(1);});` });
+  chatty.jobs.start({ agent: 'auto', taskClass: 'code', prompt: 'Billing page' });
+  await settle(chatty.jobs, list => list[0].status === 'failed');
+  assert.equal(chatty.jobs.list().length, 1, 'stdout text never triggers failover');
+  assert.equal(chatty.jobs.agents().find(a => a.id === 'codex').status, 'available');
+
+  // A structured provider error on stdout is honoured.
+  const structured = fixture(t, { codexScript: `process.stdin.resume();process.stdin.on('end',()=>{console.log(JSON.stringify({type:'error',message:'usage limit reached for this plan'}));process.exit(1);});` });
+  const s = structured.jobs.start({ agent: 'auto', taskClass: 'code', prompt: 'Structured' });
+  await settle(structured.jobs, list => list.some(job => job.failoverFrom === s.id));
+  assert.equal(structured.jobs.agents().find(a => a.id === 'codex').status, 'exhausted');
+
+  // Quota on stderr, but the job had already run a command: no rerun, clear note.
+  const acted = fixture(t, { codexScript: `process.stdin.resume();process.stdin.on('end',()=>{console.log(JSON.stringify({type:'item.completed',item:{type:'command_execution',command:'npm install'}}));console.error('Error: usage limit reached');process.exit(1);});` });
+  const a = acted.jobs.start({ agent: 'auto', taskClass: 'code', prompt: 'Acted first' });
+  await settle(acted.jobs, list => list.find(job => job.id === a.id).status === 'failed');
+  const actedJob = acted.jobs.list().find(job => job.id === a.id);
+  assert.equal(actedJob.sideEffects, true);
+  assert.equal(actedJob.failoverTo, null);
+  assert.equal(actedJob.stopReason, 'provider_exhausted', 'the provider is still marked exhausted');
+  assert.match(actedJob.logTail, /had already acted \(tool or approval activity seen\)\. Not rerun automatically/);
+  assert.equal(acted.jobs.list().length, 1);
+});
+
+test('review regressions: the rerun carries the pristine prompt once, and follow loops are capped', async t => {
+  const { dir, jobs } = fixture(t);
+  jobs.start({ agent: 'auto', taskClass: 'code', prompt: 'ORIGINAL TASK TEXT' });
+  await settle(jobs, list => list.some(job => job.agent === 'gemini' && job.status === 'completed'));
+  const brief = fs.readFileSync(path.join(dir, 'gemini-brief.txt'), 'utf8');
+  assert.equal((brief.match(/Route3 rerouted this task/g) || []).length, 1, 'one preamble');
+  assert.equal((brief.match(/ORIGINAL TASK TEXT/g) || []).length, 1);
+  const rerouted = jobs.list().find(job => job.agent === 'gemini');
+  assert.deepEqual(rerouted.tried, ['codex']);
+  // The next hop (if any) starts from the pristine task, not from the prefixed one.
+  assert.equal(jobs.prompts.get(rerouted.id), 'ORIGINAL TASK TEXT');
+
+  const list = [{ id: 'j1', status: 'failed', failoverTo: 'j2' }, { id: 'j2', status: 'failed', failoverTo: 'j1' }];
+  const night = new NightShift({ jobs: { list: () => list.map(j => ({ ...j })), start: () => ({ ...list[0] }), agents: () => [] }, now: () => new Date(2026, 8, 25, 23, 30), platform: 'linux' });
+  t.after(() => night.shutdown());
+  night.enqueue({ prompt: 'cycle' });
+  night.configure({ enabled: true });
+  night.tick();
+  assert.equal(night.snapshot().report[0].status, 'failed');
+  assert.match(night.snapshot().report[0].note, /chain too long/);
+});

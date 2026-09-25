@@ -119,7 +119,10 @@ async function main(argv = process.argv.slice(2), { pollMs = 2000 } = {}) {
       for (;;) {
         const job = (await api.get('/api/state')).jobs.find(item => item.id === id);
         if (!job) throw Object.assign(new Error('Job not found.'), { exitCode: 4 });
-        if (job.failoverTo) { followed.push(job.id); id = job.failoverTo; continue; }
+        if (job.failoverTo) {
+          if (followed.length >= 4) throw Object.assign(new Error(`Failover chain too long (${[...followed, job.id].join(' → ')}); inspect jobs list.`), { exitCode: 4 });
+          followed.push(job.id); id = job.failoverTo; continue;
+        }
         if (!ACTIVE.has(job.status)) return followed.length ? { job, note: `Rerouted from ${followed.join(' → ')} after the provider quota/session ended.`, followed } : { job };
         if (job.status === 'awaiting_approval' && job.permissions?.length) return { job, note: 'The job is waiting for an approval. Decide in the panel, on Telegram, or with: jobs approve <id> --request R --option O' };
         if (Date.now() > deadline) return { job, note: 'Timed out while the job was still active; it keeps running.' };

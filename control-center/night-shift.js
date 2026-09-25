@@ -126,7 +126,8 @@ class NightShift {
     for (const item of this.items) {
       if (!item.jobId || !ACTIVE.has(item.status)) continue;
       let job = this.job(item);
-      while (job?.failoverTo) { item.jobId = job.failoverTo; item.note = 'rerouted after the provider quota/session ended'; changed = true; job = this.job(item); }
+      for (let hop = 0; job?.failoverTo && hop < 4; hop++) { item.jobId = job.failoverTo; item.note = 'rerouted after the provider quota/session ended'; changed = true; job = this.job(item); }
+      if (job?.failoverTo) { Object.assign(item, { status: 'failed', endedAt: this.now().toISOString(), note: 'failover chain too long; check the job list' }); changed = true; continue; }
       const status = !job ? 'failed' : ACTIVE.has(job.status) ? job.status : job.status === 'completed' ? 'done' : 'failed';
       if (status !== item.status) {
         item.status = status;
