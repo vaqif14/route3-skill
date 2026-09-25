@@ -51,7 +51,7 @@ jq --arg gw "$GUARD_WRITE" --arg gd "$GUARD_DONE" '
     "hooks": [{"type":"command","command":$gw}]
   }] |
   .hooks.Stop += [{
-    "hooks": [{"type":"command","command":$gd}]
+    "hooks": [{"type":"command","command":$gd,"timeout":30}]
   }]
 ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
 

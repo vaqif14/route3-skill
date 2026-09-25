@@ -98,6 +98,88 @@ else bad "gates pass → allow stop + DONE_OK stamped" "$ec / DONE_OK=$( [[ -f $
 run "$GW" 0 "post-DONE_OK → route retired, allow src edit" "$B" \
   '{"tool_name":"Edit","tool_input":{"file_path":"/p/src/api.ts"}}'
 
+echo "== guard-done scope gate =="
+CS="$HERE/../scripts/check-scope.sh"
+
+# passing_world <base>: all non-scope gates green (token + writer ack + full PLAN).
+passing_world() {
+  local b="$1" s="$1/.workflow/route3" tok="r3-20260925T000000Z-cafebabe"
+  route "$b"
+  printf '%s\n' "$tok" > "$s/DISPATCH_TOKEN"
+  printf 'WRITER_ACK: agent=route3-api-expert token=%s at=2026-09-25T00:00:00Z\n' "$tok" > "$s/WRITER_ACK.md"
+  cat > "$s/PLAN.md" <<PLAN
+CLARIFY_COVERAGE: D1..D11 ok
+GRILL: status=ALIGNED
+SOLUTION_BAR: saas
+AGENT_MAP: route3-api-expert|EXISTS
+PREFLIGHT: PASS
+ROUTE_DECISION: primary=native reason=test sol=MISSING kimi=MISSING
+DISPATCH_PROMPT: present
+BUILDER_DISPATCH: primary=native via=task agents=route3-api-expert|EXISTS at=2026-09-25T00:00:00Z
+DISPATCH_TOKEN: $tok
+BUILD_PROOF: tsc+lint green
+SLICE_EVAL: pass
+BITIRDIM: task=scope fixture at=2026-09-25T00:00:00Z
+BITIRDIM: task=scope fixture at=2026-09-25T00:00:00Z
+PLAN
+  mkdir -p "$b/src" "$b/docs"
+  echo 'v1' > "$b/src/sum.js"
+  echo 'dirty before the run' > "$b/docs/wip.md"
+  printf 'REQUEST: fix sum\nALLOW: src/**\nFORBID: src/legacy/**\n' > "$s/INTENT.md"
+}
+lock_scope() { ( cd "$1" && "$CS" --lock --state "$1/.workflow/route3" >/dev/null ); }
+stop_run() {  # stop_run <base> <json> → sets out/ec
+  out="$(cd "$1" && printf '%s' "$2" | ROUTE3_STATE_DIR="$1/.workflow/route3" "$GD" 2>&1)"; ec=$?
+}
+expect() {    # expect <name> <want-exit> <grep-pattern-or-empty>
+  if [[ "$ec" -eq "$2" ]] && { [[ -z "$3" ]] || printf '%s' "$out" | grep -q -- "$3"; }; then ok "$1"
+  else bad "$1" "$ec" "$2 /$3/" "      out: $out"; fi
+}
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"; echo 'v2' > "$B/src/sum.js"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "locked scope, in-scope change, dirty baseline ignored → allow" 0 ""
+[[ -f "$B/.workflow/route3/DONE_OK" ]] && ok "  └ DONE_OK stamped" || bad "  └ DONE_OK stamped" "-" "file" ""
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"; echo 'v2' > "$B/src/sum.js"; echo x > "$B/README.md"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "change outside ALLOW → BLOCK" 2 "UNTRACED: README.md"
+grep -q 'UNTRACED: README.md' "$B/.workflow/route3/SCOPE_FAIL" 2>/dev/null \
+  && ok "  └ SCOPE_FAIL persisted" || bad "  └ SCOPE_FAIL persisted" "-" "file" ""
+stop_run "$B" '{"stop_hook_active":true}'
+expect "second stop still loop-safe, failure surfaced to user" 0 '"systemMessage".*UNRESOLVED scope failure'
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"; mkdir -p "$B/src/legacy"; echo x > "$B/src/legacy/pay.js"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "FORBID inside ALLOW → BLOCK" 2 "FORBIDDEN: src/legacy/pay.js"
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"; echo x > "$B/README.md"
+printf 'REQUEST: fix sum\nALLOW: src/**, README.md\n' > "$B/.workflow/route3/INTENT.md"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "agent widens ALLOW after lock → BLOCK" 2 "changed after the lock"
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"
+printf 'REQUEST: fix sum\nALLOW: **\n' > "$B/.workflow/route3/INTENT.md"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "ALLOW: ** → BLOCK (too broad)" 2 "ALLOW too broad"
+
+B="$(new_base)"; passing_world "$B"; echo 'v2' > "$B/src/sum.js"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "INTENT.md never locked → BLOCK" 2 "never locked"
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "locked, nothing changed (work landed elsewhere) → BLOCK" 2 "no change inside the locked tree"
+
+B="$(new_base)"; passing_world "$B"; lock_scope "$B"
+printf 'NO_CHANGE: bug was already fixed upstream\n' >> "$B/.workflow/route3/INTENT.md"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "declared NO_CHANGE → allow" 0 ""
+
+B="$(new_base)"; passing_world "$B"; rm "$B/.workflow/route3/ROUTE_LAST.txt"; echo x > "$B/README.md"
+stop_run "$B" '{"stop_hook_active":false}'
+expect "no live route → scope gate is a no-op" 0 ""
+
 echo
 echo "RESULT: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

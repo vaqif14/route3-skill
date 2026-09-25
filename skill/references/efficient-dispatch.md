@@ -6,8 +6,10 @@ independent deliverables and disjoint ownership. Use available host agents by
 actual tool identity, attaching a Route3 specialist reference when useful.
 A specialist name in a markdown file does not make that runtime agent available.
 
-A useful brief contains: goal, exact owned paths, acceptance checks, necessary
-facts, constraints, dependencies and expected return. State that others share the
+A useful brief contains: the user's request verbatim, `READ_AS`, exact owned
+paths, `DONE_WHEN` acceptance checks, `MUST_NOT_CHANGE` with reasons, necessary
+facts, dependencies and expected return (see `intent-fidelity.md`). Tell the
+agent to stop and report on ambiguity instead of improvising another task. State that others share the
 workspace and their changes must be preserved. Prefer fresh context with explicit
 paths over a full conversation fork. Do not pass every reference or agent roster.
 Do not restart discovery already completed by another agent.

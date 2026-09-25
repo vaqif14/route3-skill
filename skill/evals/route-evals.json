@@ -71,6 +71,86 @@
       "id": "dispatch-with-writer-ack-passes",
       "name": "WRITER_ACK from a non-boss agent bound to DISPATCH_TOKEN passes",
       "expect": "ASSERT OK"
+    },
+    {
+      "id": "scope-traced-passes",
+      "name": "All changed files inside ALLOW pass the scope audit",
+      "expect": "SCOPE OK"
+    },
+    {
+      "id": "scope-untraced-fails",
+      "name": "A changed file outside ALLOW is flagged UNTRACED",
+      "expect": "UNTRACED"
+    },
+    {
+      "id": "scope-forbidden-beats-allow",
+      "name": "FORBID wins over a broader ALLOW glob",
+      "expect": "FORBIDDEN"
+    },
+    {
+      "id": "scope-scratch-leftovers-fail",
+      "name": "Debug scripts and logs left behind are flagged SCRATCH",
+      "expect": "SCRATCH"
+    },
+    {
+      "id": "scope-marker-intent-nongit",
+      "name": "Non-git workspace: INTENT.md ALLOW + start marker traces only new changes",
+      "expect": "SCOPE OK"
+    },
+    {
+      "id": "scope-marker-catches-drift",
+      "name": "Non-git workspace: new file outside ALLOW after marker is UNTRACED",
+      "expect": "UNTRACED"
+    },
+    {
+      "id": "scope-git-subdir-relative",
+      "name": "Git mode reports paths relative to --root",
+      "expect": "TRACED"
+    },
+    {
+      "id": "scope-markdown-intent-keeps-forbid",
+      "name": "Bullet/bold/backtick INTENT lines still apply FORBID; underscores in paths survive",
+      "expect": "FORBIDDEN"
+    },
+    {
+      "id": "scope-prose-allow-not-scope",
+      "name": "A verbatim request line 'Allow: ...' is not parsed as scope",
+      "expect": "UNTRACED"
+    },
+    {
+      "id": "scope-single-star-stays-in-dir",
+      "name": "'*' does not cross directories; '**' does",
+      "expect": "UNTRACED"
+    },
+    {
+      "id": "scope-snapshot-sees-old-mtime-and-deletes",
+      "name": "Snapshot mode catches files with preserved old mtime and deletions",
+      "expect": "UNTRACED"
+    },
+    {
+      "id": "scope-empty-change-is-reported",
+      "name": "No detected change is reported as SCOPE EMPTY, not silent OK",
+      "expect": "SCOPE EMPTY"
+    },
+    {
+      "id": "scope-git-sees-outside-root",
+      "name": "Git mode surfaces changes outside --root as ../ UNTRACED",
+      "expect": "UNTRACED"
+    },
+    {
+      "id": "scope-lock-requires-allow",
+      "name": "--lock refuses an INTENT.md without ALLOW",
+      "expect": "SCOPE FAIL"
+    },
+    {
+      "id": "scope-gate-rejects-agent-list",
+      "name": "--gate refuses agent-supplied --changed/--allow overrides",
+      "expect": "exit 2"
+    },
+    {
+      "id": "scope-broad-allow-refused",
+      "name": "ALLOW covering the whole tree is refused",
+      "expect": "ALLOW too broad"
     }
   ]
 }

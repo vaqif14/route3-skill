@@ -207,5 +207,107 @@ else
   bad "dispatch-with-writer-ack-passes (exit=$rc) $out"
 fi
 
+# --- scope audit (intent fidelity) ------------------------------------------
+scope_run() { set +e; out=$("$SCR/check-scope.sh" "$@" 2>&1); rc=$?; set -e; }
+mkdir -p scope && printf 'src/app.js\nsrc/util.js\n' > scope/ok.txt
+scope_run --allow 'src/**' --changed scope/ok.txt
+[[ "$rc" -eq 0 ]] && echo "$out" | grep -q 'SCOPE OK' \
+  && ok "scope-traced-passes" || bad "scope-traced-passes (exit=$rc) $out"
+
+printf 'src/app.js\nREADME.md\n' > scope/untraced.txt
+scope_run --allow 'src/**' --changed scope/untraced.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'UNTRACED: README.md' \
+  && ok "scope-untraced-fails" || bad "scope-untraced-fails (exit=$rc) $out"
+
+printf 'src/legacy/pay.js\n' > scope/forbid.txt
+scope_run --allow 'src/**' --forbid 'src/legacy/**' --changed scope/forbid.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'FORBIDDEN: src/legacy/pay.js' \
+  && ok "scope-forbidden-beats-allow" || bad "scope-forbidden-beats-allow (exit=$rc) $out"
+
+printf 'src/debug_dump.js\nsrc/run.log\n' > scope/scratch.txt
+scope_run --allow 'src/**' --changed scope/scratch.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'SCRATCH: src/debug_dump.js' \
+  && echo "$out" | grep -q 'SCRATCH: src/run.log' \
+  && ok "scope-scratch-leftovers-fail" || bad "scope-scratch-leftovers-fail (exit=$rc) $out"
+
+# Non-git workspace: INTENT.md ALLOW + start marker picks up only newer files.
+mkdir -p ws/.workflow/route3 ws/src ws/docs
+printf 'REQUEST: fix sum\nALLOW: src/**\n' > ws/.workflow/route3/INTENT.md
+echo old > ws/docs/old.md
+( cd ws && "$SCR/check-scope.sh" --mark >/dev/null )
+echo new > ws/src/sum.js
+scope_run --root ws
+[[ "$rc" -eq 0 ]] && echo "$out" | grep -q 'TRACED: src/sum.js' \
+  && ! echo "$out" | grep -q 'docs/old.md' \
+  && ok "scope-marker-intent-nongit" || bad "scope-marker-intent-nongit (exit=$rc) $out"
+echo drift > ws/docs/new.md
+scope_run --root ws
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'UNTRACED: docs/new.md' \
+  && ok "scope-marker-catches-drift" || bad "scope-marker-catches-drift (exit=$rc) $out"
+
+# Git subdirectory: paths must be relative to --root, not the repo top level.
+if command -v git >/dev/null 2>&1; then
+  mkdir -p repo/pkg/src && ( cd repo && git init -q . )
+  echo x > repo/pkg/src/a.js
+  scope_run --root repo/pkg --allow 'src/**' --git
+  [[ "$rc" -eq 0 ]] && echo "$out" | grep -q 'TRACED: src/a.js' \
+    && ok "scope-git-subdir-relative" || bad "scope-git-subdir-relative (exit=$rc) $out"
+fi
+
+# Regressions found by adversarial review of check-scope.sh.
+mkdir -p md/.workflow/route3 && printf 'src/pay/x.js\nsrc/my_file.js\n' > md/l.txt
+printf -- '- ALLOW: `src/**`\n**FORBID:** src/pay/**\n' > md/.workflow/route3/INTENT.md
+scope_run --root md --changed l.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'FORBIDDEN: src/pay/x.js' \
+  && echo "$out" | grep -q 'TRACED: src/my_file.js' \
+  && ok "scope-markdown-intent-keeps-forbid" || bad "scope-markdown-intent-keeps-forbid (exit=$rc) $out"
+
+printf 'REQUEST: fix it\nAllow: everything please\nALLOW: src/**\n' > md/.workflow/route3/INTENT.md
+printf 'everything please\n' > md/p.txt
+scope_run --root md --changed p.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'UNTRACED: everything please' \
+  && ok "scope-prose-allow-not-scope" || bad "scope-prose-allow-not-scope (exit=$rc) $out"
+
+printf 'src/a.js\nsrc/deep/x.js\n' > scope/star.txt
+scope_run --allow 'src/*.js' --changed scope/star.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'UNTRACED: src/deep/x.js' \
+  && echo "$out" | grep -q 'TRACED: src/a.js' \
+  && ok "scope-single-star-stays-in-dir" || bad "scope-single-star-stays-in-dir (exit=$rc) $out"
+
+mkdir -p snap/src && echo del > snap/src/old.js
+( cd snap && "$SCR/check-scope.sh" --mark >/dev/null )
+echo keep > snap/aged.txt && touch -t 202001010000 snap/aged.txt
+rm snap/src/old.js
+scope_run --root snap --allow 'src/**'
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'UNTRACED: aged.txt' \
+  && echo "$out" | grep -q 'TRACED: DELETED src/old.js' \
+  && ok "scope-snapshot-sees-old-mtime-and-deletes" || bad "scope-snapshot-sees-old-mtime-and-deletes (exit=$rc) $out"
+
+mkdir -p empty && ( cd empty && "$SCR/check-scope.sh" --mark >/dev/null )
+scope_run --root empty --allow 'src/**'
+[[ "$rc" -eq 0 ]] && echo "$out" | grep -q 'SCOPE EMPTY' \
+  && ok "scope-empty-change-is-reported" || bad "scope-empty-change-is-reported (exit=$rc) $out"
+
+if command -v git >/dev/null 2>&1; then
+  mkdir -p repo/other && echo evil > repo/other/evil.js
+  scope_run --root repo/pkg --allow 'src/**' --git
+  [[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'UNTRACED: ../other/evil.js' \
+    && ok "scope-git-sees-outside-root" || bad "scope-git-sees-outside-root (exit=$rc) $out"
+fi
+
+# Scope lock: boss freezes ALLOW/FORBID; the gate refuses agent-supplied overrides.
+mkdir -p lk/.workflow/route3 && printf 'REQUEST: x\n' > lk/.workflow/route3/INTENT.md
+scope_run --root lk --lock
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'no ALLOW line' \
+  && ok "scope-lock-requires-allow" || bad "scope-lock-requires-allow (exit=$rc) $out"
+printf 'REQUEST: x\nALLOW: src/**\n' > lk/.workflow/route3/INTENT.md
+printf 'README.md\n' > lk/list.txt
+scope_run --root lk --lock
+scope_run --root lk --gate --changed list.txt
+[[ "$rc" -eq 2 ]] && ok "scope-gate-rejects-agent-list" || bad "scope-gate-rejects-agent-list (exit=$rc) $out"
+scope_run --allow '**' --changed scope/ok.txt
+[[ "$rc" -eq 1 ]] && echo "$out" | grep -q 'ALLOW too broad' \
+  && ok "scope-broad-allow-refused" || bad "scope-broad-allow-refused (exit=$rc) $out"
+
 echo "EVAL_ROUTE: pass=$PASS fail=$FAIL"
 [[ "$FAIL" -eq 0 ]]

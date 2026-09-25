@@ -32,6 +32,14 @@ explicit mode is selected, not as universal approval or ceremony requirements.
    evidence lives under `.workflow/route3/`. No D1–D11 form or paid connectivity
    probes are needed for an already clear request.
 
+## Intent fidelity (every Route3 run)
+
+Before delegating, write `.workflow/route3/INTENT.md` (verbatim `REQUEST`,
+`DONE_WHEN`, `ALLOW`/`FORBID`) and run `scripts/check-scope.sh --lock`; only the
+user widens scope. Trust the scope gate, not the agent's report — see
+[intent-fidelity.md](references/intent-fidelity.md). The Stop hook enforces it
+when Route3 hooks are installed; otherwise it is advisory.
+
 ## Session supervision (every Route3 run)
 
 Read [session-governor.md](references/session-governor.md) once for measured
@@ -101,6 +109,7 @@ clearly replaces or cancels it.
 
 | Need | Reference |
 |---|---|
+| Intent contract, scope audit, misread correction | `references/intent-fidelity.md` |
 | Session usage, compact, checkpoint | `references/session-governor.md` |
 | Expert selection, ownership, bounded briefs | `references/efficient-dispatch.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |

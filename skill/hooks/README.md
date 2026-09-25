@@ -7,7 +7,7 @@ them. These hooks make the harness itself enforce the two core rules.
 | Hook | Event | Enforces |
 |---|---|---|
 | `guard-boss-write.sh` | `PreToolUse` (Edit/Write/MultiEdit/NotebookEdit) | Hard rule #1/#13 — boss never hand-edits product files while a route is live. Denies the tool call. |
-| `guard-done.sh` | `Stop` | Hard rule #12 — cannot end the turn until `assert-dispatch-evidence.sh` + `check-plan-done.sh` pass. On pass, stamps `DONE_OK`. |
+| `guard-done.sh` | `Stop` | Hard rule #12 — cannot end the turn until `assert-dispatch-evidence.sh` + `check-plan-done.sh` pass, and — when `INTENT.md` exists — `check-scope.sh --gate` (locked scope vs baseline). On pass, stamps `DONE_OK`. |
 
 ## Design guarantees
 
