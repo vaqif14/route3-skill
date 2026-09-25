@@ -28,6 +28,8 @@
     "control-center/public/",
     "control-center/mac/*.swift",
     "control-center/mac/*.sh",
+    "control-center/mac/AppIcon.icns",
+    "control-center/mac/AppIcon.svg",
     "control-center/mac/README.md",
     "control-center/test/",
     "test/"

@@ -15,6 +15,14 @@ bash control-center/mac/build.sh --check     # toolchain + source sanity check
 Requirements: macOS 11+, Apple command line developer tools (`swiftc`), and
 Node.js 18+ somewhere the app can find (see discovery order below).
 
+## App icon
+
+`AppIcon.svg` is the source: three agent routes converging into one outcome on
+the macOS 824/1024 grid. `build.sh` copies the committed `AppIcon.icns` into the
+bundle and sets `CFBundleIconFile`; a missing `.icns` builds with the default
+icon. After editing the SVG, run `bash control-center/mac/make-icon.sh`
+(needs Google Chrome for rendering; `iconutil`/`sips` ship with macOS).
+
 ## Ownership model
 
 On launch the app polls `http://127.0.0.1:43173/api/health`:

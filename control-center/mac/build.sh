@@ -3,6 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SOURCE="$ROOT/control-center/mac/Route3Control.swift"
+ICON="$ROOT/control-center/mac/AppIcon.icns"
 APP_NAME="Route3 Control.app"
 EXECUTABLE="Route3 Control"
 OUTPUT="${HOME}/Applications"
@@ -32,12 +33,15 @@ mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 echo "Compiling $EXECUTABLE..."
 swiftc -O -framework AppKit -framework WebKit -o "$BUNDLE/Contents/MacOS/$EXECUTABLE" "$SOURCE"
 "$BUNDLE/Contents/MacOS/$EXECUTABLE" --self-test
-node - "$ROOT" "$BUNDLE/Contents/Info.plist" <<'JS'
+# The icon is optional: a missing .icns builds the app with the default icon.
+HAS_ICON=0
+if [[ -f "$ICON" ]]; then cp "$ICON" "$BUNDLE/Contents/Resources/AppIcon.icns"; HAS_ICON=1; fi
+node - "$ROOT" "$BUNDLE/Contents/Info.plist" "$HAS_ICON" <<'JS'
 const fs=require('node:fs'),path=require('node:path');
-const [root,file]=process.argv.slice(2);
+const [root,file,hasIcon]=process.argv.slice(2);
 const version=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version;
 const xml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
-const fields={CFBundleName:'Route3 Control',CFBundleDisplayName:'Route3 Control',CFBundleIdentifier:'az.itinnovations.route3.control',CFBundleExecutable:'Route3 Control',CFBundlePackageType:'APPL',CFBundleShortVersionString:version,CFBundleVersion:version,LSMinimumSystemVersion:'11.0',ROUTE3ServerJSPath:path.join(root,'control-center/server.js'),ROUTE3Port:'43173'};
+const fields={CFBundleName:'Route3 Control',CFBundleDisplayName:'Route3 Control',CFBundleIdentifier:'az.itinnovations.route3.control',CFBundleExecutable:'Route3 Control',CFBundlePackageType:'APPL',CFBundleShortVersionString:version,CFBundleVersion:version,LSMinimumSystemVersion:'11.0',ROUTE3ServerJSPath:path.join(root,'control-center/server.js'),ROUTE3Port:'43173',...(hasIcon==='1'?{CFBundleIconFile:'AppIcon'}:{})};
 fs.writeFileSync(file,`<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>${Object.entries(fields).map(([k,v])=>`<key>${k}</key><string>${xml(v)}</string>`).join('')}<key>NSHighResolutionCapable</key><true/><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>\n`);
 JS
 plutil -lint "$BUNDLE/Contents/Info.plist"
