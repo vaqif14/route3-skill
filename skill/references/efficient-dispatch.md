@@ -14,6 +14,11 @@ workspace and their changes must be preserved. Prefer fresh context with explici
 paths over a full conversation fork. Do not pass every reference or agent roster.
 Do not restart discovery already completed by another agent.
 
+For supplied document resources, use [markitdown.md](markitdown.md) before handing
+off analysis. Pass the original path/hash, derived Markdown path, relevant
+headings or line ranges and extraction warnings. Reuse the verified conversion
+instead of passing binary files or duplicating full document text in each brief.
+
 Record actual agent ID/provider, why selected, start/end, state and changed
 artifacts. For provider quota/auth errors, surface the failure and use a supported
 alternative with the same acceptance criteria. Check whether the first attempt
@@ -30,3 +35,13 @@ not a new broad architecture discussion.
 
 Legacy factory runs continue to use their dispatch token and writer ACK contract.
 They are an explicit workflow, not required ceremony for every Route3 invocation.
+
+## Browser task delegation
+
+Use [webbrain.md](webbrain.md) when the task needs the user's signed-in browser
+and WebBrain tools are actually available. Pass a bounded goal, intended site /
+account / tab, authorized operations, acceptance checks and result schema. Keep
+its browser task `run_id` distinct from host agent/session IDs. It delegates to
+the extension's configured model; preserve that model and disclose its identity
+as unknown if unobservable. A timeout does not authorize launching a duplicate
+task or replaying the same action through another browser backend.

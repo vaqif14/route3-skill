@@ -1,5 +1,16 @@
 # Route3 trigger + clarify + quality evals
 
+## Measured capability comparisons
+
+For requested capability, prompt or routing optimization, use
+[measured-improvement.md](measured-improvement.md) and
+`python3 scripts/compare-runs.py baseline.json candidate.json`.
+This compares frozen real-run evidence; it does not replace outcome execution
+with simulated fixtures. Validate the comparator with
+`python3 scripts/test-compare-runs.py` (local temporary files, no provider calls).
+The legacy trigger/clarify/factory procedures below apply to their named modes;
+the current entrypoint controls ordinary task intake.
+
 Callers: `SKILL.md`; `scripts/eval-triggers.sh`; description edits.
 
 ## Trigger eval
