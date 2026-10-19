@@ -56,6 +56,16 @@ Use the chosen project workspace for agent execution; any broader permissions
 remain subject to the agent's configured policy. Quitting the app must not stop
 an independently running server or unrelated gateway.
 
+### Optional WebBrain browser backend
+
+For signed-in page inspection or authorized browser interaction, follow
+[webbrain.md](webbrain.md). This is agent-side dispatch through actual available
+MCP tools; the panel does not gain a WebBrain integration from these instructions.
+Check `webbrain_connection` when exposed, retain the returned task `run_id`, and
+resume through status after a timeout. Installation, MCP registration and changing
+the extension's single bridge destination are separate setup operations; preserve
+an existing Cloud or LM Studio bridge unless changing it is part of the request.
+
 ## Continue from Telegram
 
 Use [remote-telegram.md](remote-telegram.md) for the dedicated paired bot and

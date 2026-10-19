@@ -1,5 +1,11 @@
 # Route3 self-improve (mandatory, evidence-bound)
 
+The mandatory triggers below belong to existing factory/slice runs. For requested
+capability optimization outside that mode, use
+[measured-improvement.md](measured-improvement.md). A bound lesson preserves
+evidence; it does not establish a measured gain or automatically authorize a
+skill rewrite, paid experiment or model switch.
+
 Lessons are **data**, not mid-task skill rewrites. Boss may record/rollback lessons;
 changing `SKILL.md` / references from a lesson needs **user or eval gate**.
 

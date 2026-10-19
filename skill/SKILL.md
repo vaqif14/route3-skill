@@ -40,6 +40,17 @@ user widens scope. Trust the scope gate, not the agent's report — see
 [intent-fidelity.md](references/intent-fidelity.md). The Stop hook enforces it
 when Route3 hooks are installed; otherwise it is advisory.
 
+## Read supplied resources through Markdown
+
+When the user supplies a document, PDF or downloadable file resource, follow
+[markitdown.md](references/markitdown.md): obtain the actual local file, convert
+supported formats with MarkItDown, then work from relevant Markdown sections.
+Reuse existing Markdown. Preserve the original, source hash and extraction
+warnings; do not mistake blank text, image metadata or partial extraction for
+complete content. Check the original with native PDF/Office/image tools when
+layout, scans, formulas or exact values matter. This intake rule applies to
+supplied resources, not every source-code file opened during repository work.
+
 ## Session supervision (every Route3 run)
 
 Read [session-governor.md](references/session-governor.md) once for measured
@@ -104,6 +115,12 @@ agent, OpenClaw, browser or Telegram management. The panel launches real install
 CLIs and shows measured sessions and process results. Commands are capability
 checked; unavailable credentials or services appear as unavailable/error.
 
+For tasks needing an existing signed-in browser session, read
+[webbrain.md](references/webbrain.md). Use an available purpose-built connector
+first when it fits; WebBrain is an optional task-level browser backend, not an
+assumed installed tool or a built-in control-center button. Verify the connection,
+choose Ask/Act within the requested scope, and retain its run ID for recovery.
+
 External messages require the user's explicit authorization. Preserve existing
 bot tokens and gateway settings. Never include secrets or full private transcripts
 in UI diagnostics, checkpoints, commits or agent handoffs. Stop only processes
@@ -118,15 +135,34 @@ works, how it was verified and any real blocker. Commit/push/publish only within
 existing user authorization. A new user message steers the active task unless it
 clearly replaces or cancels it.
 
+## Improve from observed outcomes
+
+When asked to optimize Route3, a capability, prompts or model routing, read
+[measured-improvement.md](references/measured-improvement.md). Map the relevant
+capability to its actual files, diagnose observed failures, freeze the evaluation
+protocol, and compare a bounded candidate against the incumbent on the same cases.
+Keep correctness gates separate from token, latency and cost measurements. Unknown
+or incomplete evidence cannot establish a winner. Retain the incumbent on ties or
+regressions; preserve explicit model choices even when another model scores better.
+
+Ordinary task completion does not require an optimization experiment. Lessons are
+evidence for a future change, not permission for automatic skill rewrites. The
+local workflow requires no service; read [overmind.md](references/overmind.md)
+only for an actual Overmind integration or experiment.
+
 ## Load only the relevant depth
 
 | Need | Reference |
 |---|---|
 | Intent contract, scope audit, misread correction | `references/intent-fidelity.md` |
 | Session usage, compact, checkpoint | `references/session-governor.md` |
+| Supplied files/PDFs → Markdown before analysis | `references/markitdown.md` |
+| Capability diagnosis, paired evals, candidate adoption | `references/measured-improvement.md` |
+| Optional Overmind MCP, tracing and optimizer | `references/overmind.md` |
 | Expert selection, ownership, bounded briefs | `references/efficient-dispatch.md` |
 | CLI client for jobs, Night Shift, brain, experts, Telegram | `references/cli-client.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |
+| Signed-in browser tasks, structured extraction, WebBrain MCP | `references/webbrain.md` |
 | Telegram remote tasks, pairing, background service | `references/remote-telegram.md` |
 | Repository symbol map and local code discovery | `references/context-engine.md` |
 | Explicit artifact factory / legacy run | `references/factory-contract.md` |
