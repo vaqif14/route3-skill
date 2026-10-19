@@ -78,6 +78,15 @@ full history only when continuity needs it. Reuse a relevant existing agent.
 Use the context engine only where its map saves reading; do not load every skill,
 team roster or reference. Reviewer reads evidence/diff, not the writer's confidence.
 
+For unfamiliar behavior spanning files, optional `context/ctx.sh search "question"
+--root <directory>` retrieves Jevgrep source evidence before dispatch. This is an
+explicit provider call that sends eligible source outside the machine; use it
+only within the user's authorized source-sharing scope. Keep exact symbol/path
+lookups local. Read the returned excerpts once, pass a bounded relevant selection
+to the writer, and preserve incomplete/unavailable status. Do not ask each agent
+to repeat the same search. Setup, limits and factory opt-in are in
+[context-engine.md](references/context-engine.md).
+
 For existing artifact factory runs, preserve its actual dispatch tokens, stage
 state and ownership gates; read `references/factory-contract.md` and the needed
 scripts. Never manufacture user approval, writer acknowledgements or test results.
@@ -118,7 +127,7 @@ clearly replaces or cancels it.
 | CLI client for jobs, Night Shift, brain, experts, Telegram | `references/cli-client.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |
 | Telegram remote tasks, pairing, background service | `references/remote-telegram.md` |
-| Repository symbol map | `references/context-engine.md` |
+| Repository symbol map and optional Jevgrep discovery | `references/context-engine.md` |
 | Explicit artifact factory / legacy run | `references/factory-contract.md` |
 | UI / product checks | `references/product-engineering.md` |
 | Domain teams | the matching `teams/*.md` only |

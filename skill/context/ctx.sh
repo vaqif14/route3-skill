@@ -9,6 +9,7 @@
 #   ctx.sh build            ctx.sh map [--budget N]     ctx.sh skeleton <file>
 #   ctx.sh callers <f|sym>  ctx.sh check                ctx.sh pack "<task>" [--k N]
 #   ctx.sh backend          # print which backend would run
+#   ctx.sh search "<question>" [--root DIR] [--exclude PATTERN]  # opt-in Jevgrep
 #
 # Force native even when graft exists: ROUTE3_CTX_BACKEND=native
 set -euo pipefail
@@ -21,6 +22,11 @@ backend() {
 }
 
 cmd="${1:-}"; shift || true
+# Semantic discovery is separate from the structural backend. Calling search
+# explicitly permits sending eligible source to the user's saved jg provider.
+if [[ "$cmd" == "search" ]]; then
+  exec node "$HERE/jevgrep.js" "$@"
+fi
 BE="$(backend)"
 
 if [[ "$cmd" == "backend" ]]; then echo "ctx backend=$BE (graft $(command -v graft >/dev/null 2>&1 && echo present || echo absent))"; exit 0; fi
