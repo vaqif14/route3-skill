@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Build CONTEXT.md for a slice (conversation-isolated, repo-honest).
-# Usage: context-pack.sh --run RUN_ID --slice NNN [--semantic --search-root DIR --exclude PATTERN]
+# Usage: context-pack.sh --run RUN_ID --slice NNN [--discover --search-root DIR --exclude PATTERN]
 set -euo pipefail
 
 RUN_ID=""; SLICE=""
-SEMANTIC=false; SEARCH_SCOPE=false; SEARCH_ROOT="."; EXCLUDES=()
+DISCOVERY=false; SEARCH_SCOPE=false; SEARCH_ROOT="."; EXCLUDES=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run) RUN_ID="$2"; shift 2 ;;
     --slice) SLICE="$2"; shift 2 ;;
-    --semantic) SEMANTIC=true; shift ;;
+    --discover|--semantic) DISCOVERY=true; shift ;; # --semantic: compatibility alias, local search
     --search-root|--exclude)
       [[ $# -ge 2 && -n "$2" ]] || { echo "$1 requires a value" >&2; exit 2; }
       SEARCH_SCOPE=true
@@ -20,8 +20,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ -n "$RUN_ID" && -n "$SLICE" ]] || { echo "need --run and --slice" >&2; exit 2; }
-if [[ "$SEMANTIC" == false && "$SEARCH_SCOPE" == true ]]; then
-  echo "--search-root and --exclude require --semantic" >&2; exit 2
+if [[ "$DISCOVERY" == false && "$SEARCH_SCOPE" == true ]]; then
+  echo "--search-root and --exclude require --discover" >&2; exit 2
 fi
 
 RUN_DIR=".workflow/route3/runs/$RUN_ID"
@@ -130,14 +130,14 @@ else:
     QUERY="$(grep -iE '^\s*goal:' "$BRIEF" | head -1 | cut -d: -f2- | tr -d '\n')"
     [[ -n "$QUERY" ]] || QUERY="$(head -c 200 "$BRIEF" | tr '\n' ' ')"
     bash "$CTX" pack "$QUERY" --k 8 2>/dev/null || echo "(context engine unavailable)"
-    if [[ "$SEMANTIC" == true ]]; then
+    if [[ "$DISCOVERY" == true ]]; then
       echo
-      echo "## SEMANTIC CODE CONTEXT (Jevgrep — opt-in provider search)"
+      echo "## LOCAL CODE DISCOVERY (Route3 — content and import relationships)"
       echo "Search root: $SEARCH_ROOT"
-      # An incomplete search keeps useful evidence and its explicit status. A
-      # missing CLI/auth, budget limit, or failed search never breaks this pack.
+      # Incomplete local searches keep useful evidence and explicit status.
+      # Discovery limits or errors never break the structural context pack.
       bash "$CTX" search "$QUERY" --root "$SEARCH_ROOT" ${EXCLUDES[@]+"${EXCLUDES[@]}"} ||
-        echo "(semantic context is partial or unavailable; use structural context and targeted local reads)"
+        echo "(local discovery is partial or unavailable; use structural context and targeted local reads)"
     fi
   else
     echo "(context engine not installed)"

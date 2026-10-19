@@ -79,12 +79,13 @@ Use the context engine only where its map saves reading; do not load every skill
 team roster or reference. Reviewer reads evidence/diff, not the writer's confidence.
 
 For unfamiliar behavior spanning files, optional `context/ctx.sh search "question"
---root <directory>` retrieves Jevgrep source evidence before dispatch. This is an
-explicit provider call that sends eligible source outside the machine; use it
-only within the user's authorized source-sharing scope. Keep exact symbol/path
-lookups local. Read the returned excerpts once, pass a bounded relevant selection
-to the writer, and preserve incomplete/unavailable status. Do not ask each agent
-to repeat the same search. Setup, limits and factory opt-in are in
+--root <directory>` runs Route3's local content ranking and import follow-up,
+returning line-numbered source evidence before dispatch. It needs only Node and
+Git, with no Jevgrep CLI, model, account or service. Keep exact symbol/path
+lookups targeted. Read the returned excerpts once, pass a bounded relevant
+selection to the writer, and preserve incomplete/unavailable status. Ranking is
+lexical and structural, not learned semantic understanding. Do not ask each
+agent to repeat the same search. Limits and factory opt-in are in
 [context-engine.md](references/context-engine.md).
 
 For existing artifact factory runs, preserve its actual dispatch tokens, stage
@@ -127,7 +128,7 @@ clearly replaces or cancels it.
 | CLI client for jobs, Night Shift, brain, experts, Telegram | `references/cli-client.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |
 | Telegram remote tasks, pairing, background service | `references/remote-telegram.md` |
-| Repository symbol map and optional Jevgrep discovery | `references/context-engine.md` |
+| Repository symbol map and local code discovery | `references/context-engine.md` |
 | Explicit artifact factory / legacy run | `references/factory-contract.md` |
 | UI / product checks | `references/product-engineering.md` |
 | Domain teams | the matching `teams/*.md` only |

@@ -21,6 +21,10 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Shared by local discovery; importing these helpers must not run the CLI.
+export { extract, resolveImport };
 
 const SRC_RE = /\.(ts|tsx|js|jsx|mjs|cjs|py|go)$/;
 const OUT = '.workflow/route3/context';
@@ -223,20 +227,23 @@ function cmdPack(root, query, k) {
 }
 
 // --- arg parse ---
-const [cmd, ...rest] = process.argv.slice(2);
-const flag = (name, def) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : def; };
-const root = repoRoot(flag('--root'));
-const positional = rest.filter((a, i) => !a.startsWith('--') && !(i > 0 && rest[i - 1].startsWith('--')));
-try {
-  switch (cmd) {
-    case 'build': cmdBuild(root); break;
-    case 'map': cmdMap(root, parseInt(flag('--budget', '20'), 10)); break;
-    case 'skeleton': cmdSkeleton(root, positional[0]); break;
-    case 'callers': cmdCallers(root, positional[0], parseInt(flag('--depth', '2'), 10)); break;
-    case 'check': cmdCheck(root); break;
-    case 'pack': cmdPack(root, positional[0] || '', parseInt(flag('--k', '8'), 10)); break;
-    default:
-      console.error('usage: engine.mjs build|map|skeleton <f>|callers <f|sym>|check|pack "<q>"');
-      process.exit(2);
-  }
-} catch (e) { console.error('ENGINE_ERROR:', e.message); process.exit(1); }
+function main(argv = process.argv.slice(2)) {
+  const [cmd, ...rest] = argv;
+  const flag = (name, def) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : def; };
+  const root = repoRoot(flag('--root'));
+  const positional = rest.filter((a, i) => !a.startsWith('--') && !(i > 0 && rest[i - 1].startsWith('--')));
+  try {
+    switch (cmd) {
+      case 'build': cmdBuild(root); break;
+      case 'map': cmdMap(root, parseInt(flag('--budget', '20'), 10)); break;
+      case 'skeleton': cmdSkeleton(root, positional[0]); break;
+      case 'callers': cmdCallers(root, positional[0], parseInt(flag('--depth', '2'), 10)); break;
+      case 'check': cmdCheck(root); break;
+      case 'pack': cmdPack(root, positional[0] || '', parseInt(flag('--k', '8'), 10)); break;
+      default:
+        console.error('usage: engine.mjs build|map|skeleton <f>|callers <f|sym>|check|pack "<q>"');
+        process.exit(2);
+    }
+  } catch (e) { console.error('ENGINE_ERROR:', e.message); process.exit(1); }
+}
+if (process.argv[1] && fs.existsSync(process.argv[1]) && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) main();

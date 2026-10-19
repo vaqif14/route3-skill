@@ -180,20 +180,20 @@ dispatch evidence, lessons and opt-in hooks are retained for existing factory
 runs. Their larger ceremony is explicit, not imposed on every ordinary task.
 The [skill entrypoint](skill/SKILL.md) defines the current operating contract.
 
-For unfamiliar code behavior, Route3 also supports optional
-[Jevgrep discovery](skill/references/context-engine.md#optional-semantic-discovery-jevgrep):
+For unfamiliar code behavior, Route3 includes
+[local code discovery](skill/references/context-engine.md#local-code-discovery):
 
 ```bash
 bash skill/context/ctx.sh search "Where are permissions checked?" --root ./src
 ```
 
-Install `@dzhng/jevgrep` separately with Node.js 22+ and run `jg auth` in your
-terminal first. This command sends eligible source from the selected root to
-your saved provider and may incur charges. Ordinary structural context stays
-local; only explicit `search` or factory `context-pack.sh --semantic` invokes
-Jevgrep. Results are bounded and labeled complete, incomplete or unavailable;
-factory packs retain structural context when retrieval fails. See the reference
-for setup, narrowing exclusions, limits and result handling.
+Route3 implements directory prioritization, content ranking, import follow-up
+and line-numbered source excerpts itself, using Node.js 18+ and Git. Discovery
+uses no external AI CLI, model, network service or credentials. Ranking combines
+BM25, identifier splitting and a small behavior vocabulary; it does not promise
+model-level semantic understanding. Use `context-pack.sh --discover` to include
+bounded evidence in a factory handoff. See the reference for scope, limits,
+partial-result handling and supported exclusions.
 
 The control server binds to loopback and checks Host, Origin and a mutation token.
 It uses fixed executable/argument definitions, bounds concurrency and output, and
