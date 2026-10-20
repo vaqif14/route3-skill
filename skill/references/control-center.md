@@ -41,6 +41,31 @@ Do not repeatedly launch a failed job without reading its error and reconciling
 any changes. Presence on PATH is discovery only; actual invocation can still fail
 authentication, quota, permission or model checks.
 
+## Execution graphs and teams
+
+Use [execution-graphs.md](execution-graphs.md) for the CLI/API graph surface.
+`/api/state` includes graph summaries and storage warnings. Graphs reuse normal
+jobs, notebook resolution, permissions and cancellation; graph creation does not
+start a process. The graph scheduler permits at most two active tasks and queues
+behind the existing two-job provider limit. Checks run reviewed argv commands
+inside the configured workspace, without a shell. Pause stops new dispatch;
+cancel attempts to stop owned processes even if saving the cancellation fails.
+
+Production graph checkpoints are private workspace-keyed files under
+`~/.local/share/route3/graphs/`. Recovery pauses intact work and blocks uncertain
+outcomes. Corrupt or locked graph storage disables graph operations and reports
+a warning while independent jobs remain available. A writable checkpoint error
+latches further dispatch until the disk and running work have been reconciled.
+The panel has no graph editor; use the JSON client for team coordination.
+
+The [harness](harness.md) adds immutable per-graph limits and a bounded sanitized
+transition journal to those same checkpoints. `route3-skill harness report <id>`
+(GET `/api/graphs/:id/harness`) returns status, limits/usage, verification
+classification, artifact ids and safe next actions. It is a deterministic read;
+it never polls a provider model or approves permissions. A policy pause stops
+new work; attempt exhaustion still permits verification already earned by a
+completed loop agent, subject to the time limit.
+
 ## Integrations
 
 OpenClaw gateway and browser controls use the installed CLI's supported lifecycle

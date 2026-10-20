@@ -13,8 +13,10 @@ const { ExpertRegistry } = require('./experts');
 const { TelegramBridge } = require('./telegram-bridge');
 const { NightShift } = require('./night-shift');
 const { NotebookLM } = require('./notebooklm');
+const { GraphManager, compilePrompt } = require('./graph-runtime');
+const { buildAgentTree } = require('./agent-tree');
 
-const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
+const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/agent-tree.js': ['agent-tree.js', 'text/javascript; charset=utf-8'], '/agent-tree.css': ['agent-tree.css', 'text/css; charset=utf-8'], '/styles.css': ['styles.css', 'text/css; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
 
 function json(response, status, value) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -55,6 +57,31 @@ function createServer(options = {}) {
   const telegram = options.telegramBridge || new TelegramBridge({ jobs, notebooklm, home: options.home, workspace });
   const integrations = options.integrations || new Integrations(options.integrationOptions);
   const nightShift = options.nightShift || new NightShift({ jobs, experts, ...(options.persistJobs ? { file: path.join(options.home || os.homedir(), `.local/share/route3/night-shift/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}) });
+  // Only server-verified notebooks may enter provider jobs, including delayed
+  // graph launches. Re-resolve each launch rather than trusting a saved brain.
+  const grounded = async input => {
+    const { brain: _client, notebook, notebookId, ...rest } = input;
+    let brain = await notebooklm.resolve(notebookId ?? notebook);
+    if (!brain && typeof rest.expert === 'string') {
+      const expert = experts.find(rest.expert);
+      if (expert?.brain) {
+        try { brain = await notebooklm.resolve(expert.brain.id); }
+        catch { throw Object.assign(new Error(`The notebook bound to expert "${expert.label}" is no longer on this account. Refresh the NotebookLM list or recreate the expert.`), { statusCode: 400 }); }
+      }
+    }
+    return { ...rest, brain };
+  };
+  let graphs = options.graphs;
+  if (!graphs) {
+    try { graphs = new GraphManager({ ...options.graphOptions, jobs, workspace, prepareJob: grounded, ...(options.persistJobs ? { file: path.join(options.home || os.homedir(), `.local/share/route3/graphs/${crypto.createHash('sha256').update(workspace).digest('hex').slice(0,24)}.json`) } : {}) }); }
+    catch {
+      // Preserve independent jobs and Night Shift when graph storage cannot be
+      // opened safely. Never substitute an empty writable graph manager.
+      const historyWarning = 'Graph checkpoints could not be opened safely; graph operations are unavailable. Repair local graph state or close the other Route3 instance before restarting.';
+      const unavailable = () => { throw Object.assign(new Error(historyWarning), { statusCode: 503 }); };
+      graphs = { unavailable: true, historyWarning, list: () => [], get: unavailable, harnessReport: unavailable, create: unavailable, start: unavailable, pause: unavailable, resume: unavailable, cancel: unavailable, reconcile: unavailable, claim: unavailable, release: unavailable, message: unavailable, startScheduler() {}, shutdown() {} };
+    }
+  }
   const telemetry = options.collectTelemetry || (args => require('./telemetry').collectTelemetry(args));
   const publicDir = options.publicDir || path.join(__dirname, 'public');
   let telemetryCache = null, telemetryAt = 0, pendingTelemetry = null, drafting = false;
@@ -93,8 +120,15 @@ function createServer(options = {}) {
           const data = await collect();
           if (notebooklm.snapshot().status === 'unknown') notebooklm.refresh().catch(() => {});
           const expertList = experts.list();
-          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || []), ...(jobs.historyWarning ? [jobs.historyWarning] : [])], agents: jobs.agents(), experts: expertList, jobs: jobs.list(), integrations: integrations.snapshot(), telegramRemote: telegram.snapshot(), nightShift: nightShift.snapshot(), notebooklm: notebooklm.snapshot(), backgroundService: Boolean(process.env.ROUTE3_BACKGROUND_SERVICE), workspace, generatedAt: new Date().toISOString() });
+          const jobList = jobs.list();
+          const agentTree = buildAgentTree({ jobs: jobList, sessions: data.sessions });
+          return json(response, 200, { ...data, sessions: data.sessions || [], summary: data.summary || {}, warnings: [...(data.warnings || []), ...(experts.warnings?.() || []), ...(jobs.historyWarning ? [jobs.historyWarning] : []), ...(graphs.historyWarning ? [graphs.historyWarning] : [])], agents: jobs.agents(), experts: expertList, jobs: jobList, agentTree, graphs: graphs.list(), integrations: integrations.snapshot(), telegramRemote: telegram.snapshot(), nightShift: nightShift.snapshot(), notebooklm: notebooklm.snapshot(), backgroundService: Boolean(process.env.ROUTE3_BACKGROUND_SERVICE), workspace, generatedAt: new Date().toISOString() });
         }
+        if (pathname === '/api/graphs') { if (graphs.unavailable) graphs.get(); return json(response, 200, { graphs: graphs.list() }); }
+        const harnessPath = /^\/api\/graphs\/([0-9a-f-]{36})\/harness$/.exec(pathname);
+        if (harnessPath) return json(response, 200, graphs.harnessReport(harnessPath[1]));
+        const graphPath = /^\/api\/graphs\/([0-9a-f-]{36})$/.exec(pathname);
+        if (graphPath) return json(response, 200, { graph: graphs.get(graphPath[1]) });
         if (Object.hasOwn(STATIC, pathname)) {
           const [file, type] = STATIC[pathname];
           let content;
@@ -124,25 +158,18 @@ function createServer(options = {}) {
         else await telegram[action]();
         return json(response, 200, { telegramRemote: telegram.snapshot() });
       }
-      // A brain is only ever built by the server from a listed notebook id; a
-      // client-supplied `brain` object is discarded.
-      const grounded = async () => {
-        const { brain: _client, notebook, ...rest } = body;
-        let brain = await notebooklm.resolve(notebook);
-        // An expert's bound notebook is re-checked against the live list here, so a
-        // stale binding in experts.json cannot reach a job unverified.
-        if (!brain && typeof rest.expert === 'string') {
-          const expert = experts.find(rest.expert);
-          if (expert?.brain) {
-            try { brain = await notebooklm.resolve(expert.brain.id); }
-            catch { throw Object.assign(new Error(`The notebook bound to expert "${expert.label}" is no longer on this account. Refresh the NotebookLM list or recreate the expert.`), { statusCode: 400 }); }
-          }
-        }
-        return { ...rest, brain };
-      };
-      if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(await grounded()) });
+      if (pathname === '/api/graphs') return json(response, 201, { graph: graphs.create(Object.hasOwn(body, 'definition') ? body.definition : compilePrompt(body)) });
+      const graphAction = /^\/api\/graphs\/([0-9a-f-]{36})\/(start|pause|resume|cancel|reconcile|claim|release|message)$/.exec(pathname);
+      if (graphAction) {
+        const [, id, action] = graphAction;
+        if (action === 'claim' || action === 'release') return json(response, 200, { graph: await graphs[action](id, body.nodeId, { memberId: body.memberId }) });
+        if (action === 'message') return json(response, 200, { graph: await graphs.message(id, { from: body.from, to: body.to, taskId: body.taskId, body: body.body }) });
+        const input = action === 'start' ? { definitionHash: body.definitionHash } : action === 'reconcile' ? { nodeId: body.nodeId, action: body.action, jobId: body.jobId, note: body.note } : undefined;
+        return json(response, 200, { graph: await graphs[action](id, input) });
+      }
+      if (pathname === '/api/jobs') return json(response, 202, { job: jobs.start(await grounded(body)) });
       if (pathname === '/api/notebooklm/refresh') return json(response, 200, { notebooklm: await notebooklm.refresh({ force: true }) });
-      if (pathname === '/api/night-shift/queue') return json(response, 200, { item: nightShift.enqueue(await grounded()), nightShift: nightShift.snapshot() });
+      if (pathname === '/api/night-shift/queue') return json(response, 200, { item: nightShift.enqueue(await grounded(body)), nightShift: nightShift.snapshot() });
       if (pathname === '/api/night-shift/schedule') return json(response, 200, { nightShift: nightShift.configure(body) });
       if (pathname === '/api/experts/draft') {
         const brain = await notebooklm.resolve(body.notebook);
@@ -152,7 +179,7 @@ function createServer(options = {}) {
         try { return json(response, 200, { draft: await notebooklm.draftExpert(brain, typeof body.hint === 'string' ? body.hint : '') }); }
         finally { drafting = false; }
       }
-      if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(await grounded()) });
+      if (pathname === '/api/experts') return json(response, 200, { expert: experts.create(await grounded(body)) });
       const cancel = /^\/api\/jobs\/([0-9a-f-]{36})\/cancel$/.exec(pathname);
       if (cancel) return json(response, 200, { job: jobs.cancel(cancel[1]) });
       const permission = /^\/api\/jobs\/([0-9a-f-]{36})\/permission$/.exec(pathname);
@@ -168,15 +195,22 @@ function createServer(options = {}) {
   server.headersTimeout = 10000;
   let stopping;
   const shutdown = () => {
-    if (!stopping) { nightShift.shutdown(); jobs.shutdown(); stopping = Promise.resolve().then(() => telegram.shutdown()); }
+    if (!stopping) stopping = Promise.resolve().then(async () => {
+      const failures = [];
+      for (const component of [graphs, nightShift, jobs, telegram]) {
+        try { await component.shutdown(); } catch (error) { failures.push(error); }
+      }
+      if (failures.length) throw failures[0];
+    });
     return stopping;
   };
   server.on('listening', () => {
+    graphs.startScheduler();
     if (options.startNightShift === true) nightShift.start();
     if (options.startTelegram === true && telegram.snapshot().enabled) Promise.resolve().then(() => telegram.start()).catch(() => {});
   });
   server.on('close', () => { shutdown().catch(() => {}); });
-  server.route3 = { jobs, integrations, telegram, nightShift, notebooklm, workspace, shutdown };
+  server.route3 = { jobs, graphs, integrations, telegram, nightShift, notebooklm, workspace, shutdown };
   return server;
 }
 

@@ -1,5 +1,11 @@
 # Boss discipline — never self-write (hard)
 
+> Legacy factory profile only. This file's hard writer separation, provider
+> matrix and markers apply to an explicitly selected legacy run. Default Route3
+> uses [native-primary.md](native-primary.md): the current AI is Team Lead,
+> delegates substantial work to available host agents and owns integration.
+> This profile does not impose a vendor ladder or D1–D11 gates on that lane.
+
 Callers: `SKILL.md` hard rules #1 / #13; `native-primary.md`; `agents-and-gates.md`;
 `scripts/assert-build-route.sh`; `scripts/check-plan-done.sh`.
 

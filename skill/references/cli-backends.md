@@ -1,5 +1,12 @@
 # Route3 CLI backends (class-aware: Kimi default)
 
+> Optional legacy CLI profile, used only when explicitly selected. Normal
+> "route3 ilə et" follows [native-primary.md](native-primary.md) within the
+> current host. The ladders, paid probes, model flags and credential setup below
+> are not prerequisites or default authorization. Preserve configured models
+> and permissions; do not execute probe or installation commands merely to
+> activate Route3.
+
 **Mandatory class ladders** (see `native-primary.md`):
 
 | Class | First GREEN wins |

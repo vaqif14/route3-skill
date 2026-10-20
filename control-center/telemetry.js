@@ -12,6 +12,9 @@ const str = value => typeof value === 'string' ? value.slice(0, 1024) : null;
 const add = (...values) => values.every(v => v !== null) ? values.reduce((a, b) => a + b, 0) : null;
 const optional = value => value === undefined ? 0 : numeric(value);
 const firstNumber = (...values) => values.map(numeric).find(v => v !== null) ?? null;
+const timestamp = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+const taskLifecycle = new Map([['task_started', 'running'], ['task_complete', 'done'], ['turn_aborted', 'stopped']]);
+const lifecycle = new Map([['running', 'running'], ['awaiting_approval', 'needs_you'], ['needs_you', 'needs_you'], ['completed', 'done'], ['done', 'done'], ['failed', 'failed'], ['cancelled', 'stopped'], ['stopped', 'stopped']]);
 
 function usage(raw, provider) {
   if (!raw || typeof raw !== 'object') return null;
@@ -89,13 +92,31 @@ async function readBounded(item, bounds) {
 
 function parseSession(item, data, bounds) {
   const session = { id: path.basename(item.file, '.jsonl'), provider: item.provider, model: null, cwd: null,
-    updatedAt: new Date(item.mtimeMs).toISOString(), inputTokens: null, outputTokens: null,
+    updatedAt: new Date(item.mtimeMs).toISOString(), startedAt: null, endedAt: null, status: 'unknown', costUsd: null, inputTokens: null, outputTokens: null,
     cachedInputTokens: null, cacheWriteInputTokens: null, totalTokens: null, contextTokens: null,
     contextWindow: null, contextPercent: null, measurement: { usage: 'unavailable', context: 'unavailable', coverage: data.partial ? 'tail' : 'full' }, drivers: [] };
   let malformed = 0; let oversize = 0; let last = null; let cumulative = null; let compacted = false;
-  const messages = new Map(); let anonymous = 0; let duplicateEvents = 0;
+  const messages = new Map(), messageCosts = new Map(); let ownCumulativeCost = null; let anonymous = 0; let duplicateEvents = 0;
   function metadata(event) {
     const payload = event.payload || {};
+    const at = timestamp(event.timestamp ?? payload.timestamp);
+    if (at && (!session.startedAt || at < session.startedAt)) session.startedAt = at;
+    const parent = event.type === 'session_meta' ? payload.source?.subagent?.thread_spawn?.parent_thread_id ?? payload.parent_session_id : event.parentSessionId ?? event.parent_session_id;
+    if (str(parent)) session.parentSessionId = str(parent);
+    if (event.type === 'session_meta' || event.type === 'session') {
+      session.agentName = str(payload.agent_nickname ?? event.agentName) || session.agentName;
+      if (lifecycle.has(payload.status ?? event.status)) {
+        session.status = lifecycle.get(payload.status ?? event.status);
+        session.endedAt = ['done', 'failed', 'stopped'].includes(session.status) ? at : null;
+      }
+    }
+    let observedStatus = null;
+    if (event.type === 'event_msg') observedStatus = taskLifecycle.get(payload.type);
+    if (event.type === 'result') observedStatus = event.is_error === true || (typeof event.subtype === 'string' && event.subtype.startsWith('error')) ? 'failed' : event.subtype === 'success' ? 'done' : null;
+    if (observedStatus) { session.status = observedStatus; session.endedAt = ['done', 'failed', 'stopped'].includes(observedStatus) ? at : null; }
+    // Aggregate provider bills may include spawned agents. Only explicitly own
+    // cumulative currency or complete per-message currency is safe to add.
+    if (event.costScope === 'own') ownCumulativeCost = firstNumber(event.total_cost_usd, event.costUsd, ownCumulativeCost);
     if (event.type === 'session_meta') { session.id = str(payload.id ?? payload.session_id) || session.id; session.cwd = str(payload.cwd) || session.cwd; }
     if (event.type === 'session') { session.id = str(event.id) || session.id; session.cwd = str(event.cwd) || session.cwd; }
     if (str(event.sessionId)) {
@@ -136,6 +157,8 @@ function parseSession(item, data, bounds) {
       // Claude emits each content block with the same message id and usage.
       const id = str(message.id) || str(event.id) || str(event.uuid) || `anonymous-${anonymous++}`;
       if (messages.has(id)) duplicateEvents++;
+      const ownCost = message.usage?.cost?.total;
+      messageCosts.set(id, message.usage?.cost?.scope === 'subtree' || message.usage?.cost?.includesChildren === true ? null : numeric(ownCost));
       messages.set(id, next);
       last = next; compacted = false;
     }
@@ -154,6 +177,7 @@ function parseSession(item, data, bounds) {
     session.measurement.duplicateEventsIgnored = duplicateEvents;
     session.measurement.anonymousMessages = anonymous;
   }
+  session.costUsd = ownCumulativeCost ?? (!data.partial && !malformed && !oversize && messageCosts.size && [...messageCosts.values()].every(value => value !== null) ? [...messageCosts.values()].reduce((sum, value) => sum + value, 0) : null);
   if (last && !compacted) {
     session.contextTokens = add(last.inputTokens, last.outputTokens);
     session.measurement.context = session.contextTokens === null ? 'unavailable' : 'last_request_proxy';
@@ -181,6 +205,7 @@ function parseIndex(item, data) {
     // OpenClaw index input/output/totalTokens describe its latest request, not lifetime spend.
     const contextTokens = entry.totalTokensFresh === true ? numeric(entry.totalTokens) : null;
     sessions.push({ id: str(entry.sessionId), provider: 'openclaw', model: str(entry.model), cwd: str(entry.cwd),
+      parentSessionId: str(entry.parentSessionId ?? entry.parent_session_id ?? (typeof entry.spawnedBy === 'string' && Object.hasOwn(index, entry.spawnedBy) ? index[entry.spawnedBy]?.sessionId : null)), status: lifecycle.get(entry.status) || 'unknown', startedAt: timestamp(entry.startedAt), endedAt: timestamp(entry.endedAt), costUsd: entry.costScope === 'own' ? numeric(entry.costUsd) : null,
       updatedAt: Number.isFinite(entry.updatedAt) && !Number.isNaN(new Date(entry.updatedAt).getTime()) ? new Date(entry.updatedAt).toISOString() : new Date(item.mtimeMs).toISOString(),
       inputTokens: null, outputTokens: null, cachedInputTokens: null, cacheWriteInputTokens: null, totalTokens: null,
       contextTokens, contextWindow: numeric(entry.contextTokens), contextPercent: null,
@@ -256,6 +281,10 @@ async function collectTelemetry({ home = os.homedir(), limit = 30, cwd, sessionI
             const log = index === session ? previous : session;
             log.contextWindow ??= index.contextWindow;
             log.model ??= index.model;
+            log.parentSessionId ||= index.parentSessionId;
+            log.startedAt ||= index.startedAt;
+            log.costUsd ??= index.costUsd;
+            if (index.updatedAt >= log.updatedAt && index.status !== 'unknown') { log.status = index.status; log.endedAt = index.endedAt; }
             // Use a fresh index context only if it is newer than the log snapshot.
             if (index.contextTokens !== null && index.updatedAt >= log.updatedAt) { log.contextTokens = index.contextTokens; log.measurement.context = index.measurement.context; }
             sessionsById.set(id, log);
