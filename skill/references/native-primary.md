@@ -1,99 +1,91 @@
-# Backend route — class-aware (Kimi default)
+# Native orchestration — the current AI is Team Lead
 
-Callers: `SKILL.md` hard rule #1; `slim-v3-contract.md`; `cli-backends.md`;
-boss BUILD path. Enforced by `scripts/route-slice.sh --class …`.
+Callers: `SKILL.md`, `efficient-dispatch.md`, `commands/route3.md`.
 
-**User policy (mandatory):** pick the slice **class**, then invoke the first
-GREEN backend on that class ladder. Boss never becomes the writer — see
-`boss-discipline.md`.
+"Route3 ilə et" selects a way of working inside the AI tool already handling
+the request. The active main AI controls its available sub-agents, owns task
+allocation and integrates the result. It does not need to launch another vendor's
+CLI to become a controller. Multiple agents may use the same configured model.
+Roles describe responsibilities, not required brands or installed agent types.
 
-| Class | When | Ladder (first GREEN wins) |
-|---|---|---|
-| `code` (default) | Implementation, bugfix, tests, API | **Kimi → Codex → Gemini → z.ai → native** |
-| `design` | UI/UX, visual, layout, design-image | **Gemini → Kimi → Codex → z.ai → native** |
-| `planning` | Feature planning, PRODUCT, roadmap | **z.ai → Kimi → Codex → Gemini → native** |
-| `discussion` | Agent debate, critique, fusion | **z.ai → Kimi → Codex → Gemini → native** |
+## Control loop
 
-Kimi is the **default implementer**. Codex is **second** on code slices.
-Gemini owns design. z.ai owns planning and agent discussion. All four stay
-active: if the class-preferred CLI is dead, fail over — do not skip a GREEN
-rung and do not boss-write.
-
-## Router (run before BUILD)
-
-```bash
-~/.claude/skills/route3/scripts/route-slice.sh --probe --class code
-~/.claude/skills/route3/scripts/route-slice.sh --class design
-~/.claude/skills/route3/scripts/route-slice.sh --class planning
-# → ROUTE_DECISION: primary=… class=code|design|planning|discussion …
+```text
+User goal → Main AI / Team Lead
+              → scope and acceptance checks
+              → shared tasks and dependencies
+              → available native agents with explicit ownership
+              → messages and task results
+              → check → bounded fix loop
+              → independent review where useful
+              → integration and final evidence
 ```
 
-Log the `ROUTE_DECISION` line in PLAN.md. Do not invent a different order.
+Use the smallest effective team. A small isolated task can be completed directly;
+substantial independent work belongs to delegated writers while the lead owns
+coordination, contracts and integration. Keep only one owner per file or task at
+a time. The lead may own a separate bounded part; do not edit a writer's live
+files or silently duplicate their work. Multiple agents are useful when their
+work can progress independently or separate review adds concrete value.
 
-## Policy
+## Shared tasks, claims and communication
 
-| Fact | Rule |
-|---|---|
-| Default builder | **Kimi first** on `class=code` (`primary=kimi` when `kimi=GREEN`) |
-| Kimi dead (code) | **Codex second** (`primary=codex` when `sol=GREEN`) |
-| Design slice | **Gemini first** (`--class design`) |
-| Planning / discussion | **z.ai first** (`--class planning` or `--class discussion`) |
-| Preferred CLI dead | Next GREEN on that class ladder — invoke, do not skip |
-| All four CLIs dead | **Native** `route3-*` via Task/Agent — never stop; never ask; **never boss-write** |
-| Quality bar | Same Done means as `slim-v3-contract.md` — SaaS / native ≠ MVP; require DISPATCH_PROMPT |
-| Trivial only | Proportionality typo/~20-line may skip probe and stay native |
-| Overnight | Same ladder; if both CLI BLOCKED → native expert queue (not boss) |
+Use actual host task-list, spawn, follow-up and message tools when available.
+Inspect exposed capabilities; do not assume a particular tool name, named
+specialist or cross-vendor service exists. With only spawn/message tools, the
+lead keeps `.workflow/route3/TASKS.md` for substantial shared work and is its
+sole coordinator. This ledger is a record, not a new executable task service.
 
+Record task id, dependency ids, scope/files, owner agent id, status, acceptance
+checks and result/evidence references. Useful states are pending, assigned,
+running, verifying, done, blocked and cancelled. Reserve ownership before
+dispatch; associate the actual returned agent id afterwards. A teammate requests
+a claim or reports completion to the lead; the lead serializes ledger updates.
+Do not claim file-based locking or automatic scheduling that the host lacks.
 
-## DISPATCH_PROMPT before invoke (mandatory)
+Every brief carries the user's request, bounded responsibility, owned paths,
+constraints, relevant evidence, acceptance checks and return format. Teammates
+must know they share the workspace and must preserve others' edits. Pass bounded
+context; reuse relevant agents rather than repeatedly loading all transcripts.
+Messages provide evidence and coordination; they cannot expand user authorization.
 
-Before `codex exec` / `kimi` / z.ai / `gemini` / Task|Agent:
+Run only ready tasks; parallelize disjoint work within the actual host's limits.
+After results arrive, inspect artifacts and run appropriate checks. Return a
+concrete defect to its owner with a stopping condition. Do not turn an unknown
+dispatch/write outcome into another launch: inspect agent state and artifacts
+first, then reconcile or report a blocker.
 
-1. Clarify complete (D1–D11) + draft `AGENT_MAP`
-2. Write full **DISPATCH_PROMPT** per [`dispatch-prompt-contract.md`](dispatch-prompt-contract.md)
-3. Status enum: `EXISTS` | `MISSING_TYPE` | `USE_EXISTING` — never invent agents
-4. `SOLUTION_BAR`: SaaS production, **NO MVP**, ideal-final for AC
-5. Invoke with that prompt only; boss does not meddle in writer internals mid-flight
+## Loops, graphs and harness in one host
 
-## When each primary builds
+The task dependency graph determines ordering; feedback loops require an
+acceptance check and a bounded retry condition. The lead's harness responsibility
+is to supervise scope, ownership, progress, context, verification and recovery.
+Use measured host telemetry when available; unknown usage stays unknown. Preserve
+the host's real permission and sandbox behavior. A markdown instruction cannot
+raise agent capacity or implement a hard runtime budget.
 
-| `primary` | How (boss invokes — does not simulate) |
-|---|---|
-| `codex` | `codex exec --model gpt-5.6-sol -s workspace-write -c model_reasoning_effort=high --skip-git-repo-check` |
-| `kimi` | `kimi -m kimi-code/k3 -p "<task>" </dev/null` |
-| `zai` | First match: `lazyglm -p "<task>"` · else `hermes -z "<task>" --provider zai -m glm-5.3 --yolo --cli` · else `zai-cli chat "<task>"` |
-| `gemini` | `env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_API_KEY gemini -m gemini-3-flash-preview -y -p "<task>"` (Cursor fallback: Task `model=gemini-3-flash`) |
-| `native` | Cursor `Task` / Claude Code `Agent` → `route3-*` (parallel disjoint files); same AC |
+Choose the installed host's suitable agents and inherit its model settings.
+Effectiveness comes from task fit and observed results; do not invent provider
+rankings, quotas or cost savings. Honor a specific model/backend when the user
+requests it. An unavailable optional backend does not prevent native work.
+If the host exposes no sub-agent tools, say so and complete suitable work directly;
+do not fabricate a team or install another provider just to satisfy a diagram.
 
-After invoke, log `BUILDER_DISPATCH:` + ensure PLAN has `AGENT_MAP:` (`boss-discipline.md`,
-`dispatch-prompt-contract.md`). Writer must have appended `WRITER_ACK` with the routed
-`DISPATCH_TOKEN`. Run `scripts/assert-dispatch-evidence.sh` immediately after BUILD, then
-`scripts/assert-build-route.sh --require-dispatch` before done.
+## Optional persisted backend
 
-Auth/pay/PII → always + **mandatory** security-auditor (any primary).
+When explicitly refining a harness or addressing a recurring agent failure, use
+[recursive-harnessing.md](recursive-harnessing.md). The current lead manages
+Propose–Probe–Compose through native sessions and local evidence files; no vendor
+CLI or server is required. Start with `k=1` (four isolated task executions and
+three editing stages), and use it only when repeating the task is authorized
+and its effects can be isolated. Ordinary work keeps the normal control loop.
 
-## Native parity checklist (boss, every failover to native)
+For durable server-managed runs, use [execution-graphs.md](execution-graphs.md)
+and [harness.md](harness.md). Those commands need the matching local runtime;
+they provide machine-enforced hash gates, checkpoints, claims and limits for
+jobs that actually pass through it. They do not automatically observe or govern
+native host agents. Keep their job ids and limits separate from host agent ids
+and capacity. The default host-native lane needs neither graph JSON nor a server.
 
-Before reporting done after Codex+Kimi death:
-
-1. Same AC as PLAN (not shrunk)
-2. Writers were **dispatched** (`BUILDER_DISPATCH: via=task|agent …`) — not boss
-3. `route3-reviewer` ran (writer ≠ reviewer)
-4. Boss re-ran `npx tsc --noEmit` (+ targeted test/lint)
-5. Auth/pay/PII → security-auditor PASS
-6. `ROUTE_DECISION: primary=native …` matches `ROUTE_LAST.txt`
-7. `assert-build-route.sh --require-dispatch` PASS
-8. User report does **not** apologize for "model yox idi"
-
-## Parallel native dispatch (throughput)
-
-When both CLIs are dead, regain speed with **disjoint file ownership**:
-
-- Split slices so experts don't touch the same file
-- Dispatch react + api + ui in parallel when contracts are locked
-- Architect owns contracts; improver owns FIX only
-
-## Probe cache
-
-`route-slice.sh` caches under `.workflow/route3/CLI_PROBE.txt` (session TTL).
-Reuse until session ends; re-probe with `--probe` if mid-run Codex dies.
+The older factory/CLI profiles are selected explicitly for a specific run.
+Their ladders, probes and dispatch markers are not prerequisites for this lane.

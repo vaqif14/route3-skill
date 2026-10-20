@@ -8,6 +8,9 @@ For requested capability, prompt or routing optimization, use
 This compares frozen real-run evidence; it does not replace outcome execution
 with simulated fixtures. Validate the comparator with
 `python3 scripts/test-compare-runs.py` (local temporary files, no provider calls).
+Without ground truth, refine harnesses with
+[recursive-harnessing.md](recursive-harnessing.md); validate its tool with
+`python3 scripts/test-recursive-harness.py` (same isolation).
 The legacy trigger/clarify/factory procedures below apply to their named modes;
 the current entrypoint controls ordinary task intake.
 

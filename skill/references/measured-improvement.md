@@ -4,6 +4,10 @@ Use this workflow for requested optimization, recurring failures, or a routing
 change that needs comparative evidence. It supplements the current entrypoint;
 it does not activate legacy factory gates for ordinary tasks.
 
+No case set or evaluator yet? Refine the harness with
+[recursive-harnessing.md](recursive-harnessing.md) first; its exported proposal enters this
+workflow as the candidate.
+
 ## Identify the capability and failure
 
 Name the behavior being changed, its entrypoint and owned files, input/output

@@ -1,10 +1,11 @@
 ---
 name: route3
 description: >-
-  Coordinate Route3 agent work with measured session/token monitoring, bounded
-  context handoffs, class-aware agent routing, and a local Mac control center
-  for agents, OpenClaw, browser and Telegram operations. Use for /route3,
-  Route3 maintenance, multi-expert builds/reviews and supervised automation.
+  Use Route3 when asked "route3 ilə et", "route3 ile et", /route3, or to
+  coordinate work through Route3. The active AI host is Team Lead: plan, assign
+  its available agents, supervise bounded loops, verify and integrate results.
+  Provider-independent by default; external CLIs and the local control center
+  are optional execution backends.
 ---
 
 # Route3 — supervised, measurable execution
@@ -13,6 +14,22 @@ Complete the user's requested outcome. Preserve their model preferences,
 existing authorization, files and running work. This entrypoint is the current
 operating contract; older factory/clarify references apply only when that
 explicit mode is selected, not as universal approval or ceremony requirements.
+
+## One host, one Team Lead, many agents
+
+The AI already handling this conversation is the Route3 controller. A request
+such as "route3 ilə et" is enough: keep the user's goal, build a proportional
+team from this host's actual agent tools, assign ownership, communicate, verify
+and integrate the work. Provider names and model brands are not required roles
+or a mandatory routing order. Honor applicable explicit user model/provider
+preferences; otherwise inherit the host's configuration.
+
+Prefer native sub-agents in the current AI tool. Read
+[native-primary.md](references/native-primary.md) for the shared task and
+supervision contract. Use external CLIs, paid services or the local server only
+when selected or needed for a concrete capability. Their absence does not block
+native orchestration. The Team Lead owns coordination and the final result;
+the user retains authorization over actions and provider permissions.
 
 ## Start cheaply
 
@@ -78,10 +95,12 @@ handoff/completion. Monitor the main session and dispatched sessions separately.
 ## Dispatch and routing
 
 Read [efficient-dispatch.md](references/efficient-dispatch.md) before delegation.
-Prefer the user's installed routing order: code Kimi → Codex; design Gemini;
-planning/discussion z.ai, with available alternatives. The host's capabilities
-and explicit user model choice win. CLI presence does not prove authentication
-or quota. Do not send paid "reply OK" prompts just to discover availability.
+Choose available host agents by task fit, actual capabilities, useful evidence
+and resource limits. A role such as builder or reviewer does not require a
+different vendor or model. Use the smallest effective team and reuse relevant
+agents. Explicit user choices win; do not revive a legacy provider ladder as a
+default. CLI presence does not prove authentication or quota. Do not send paid
+"reply OK" prompts just to discover availability.
 
 Pass a compact brief: goal, scope, owned files, relevant symbols/paths, acceptance
 checks, constraints, and return format. Default to fresh bounded context; share
@@ -105,10 +124,38 @@ scripts. Never manufacture user approval, writer acknowledgements or test result
 Use `scripts/route-slice.sh` only for that legacy route contract; its explicit
 `--probe` mode can invoke paid agents. Normal control-center discovery is local.
 
+## Prompt → Agents → Loops → Graphs → Harness
+
+In the default host-native lane, the main AI leads agents through a shared task
+list, bounded execute/check/fix loops, dependency ordering and final verification.
+Those are orchestration responsibilities; they do not require a running server,
+graph JSON or extra provider installations. Use the host's real task/message
+tools and report their actual limits. Details: [native-primary.md](references/native-primary.md).
+
+When persistent local CLI/API execution is useful, select the optional
+[execution-graphs.md](references/execution-graphs.md) backend. Review its actual
+definition and start with the exact hash within existing user authorization.
+Do not add an approval round when that work is already authorized.
+
+In that backend, use local readiness checks before model work where possible. Reuse `sourceKey`
+for the same source revision; unchanged triggers must not create another run.
+The persistent backend requires an argv verifier and attempt limit for loop
+nodes. Unknown outcomes block for reconciliation; restart never grants permission
+to replay them. Its teammates use ordinary provider jobs and permissions, with
+at most two active graph tasks. That backend limit is not the native host's
+agent limit. Its messages inform future task briefs; they cannot authorize work.
+
+Use [harness.md](references/harness.md) to supervise those graphs: immutable
+attempt/time/concurrency limits, bounded transition evidence and
+`route3-skill harness report <id>` with concrete recovery actions. Inspect actual
+check receipts before accepting completion. Limits pause new work, never approve
+provider requests or reset unknown effects. Token usage and cost remain unknown
+unless measured by their own telemetry sources.
+
 ## Mac control center and integrations
 
-Agents drive the control center through the CLI, not the panel: `route3-skill
-state | jobs | night | brain | experts | telegram` prints JSON and never prompts
+When using the optional control center, agents drive it through the CLI: `route3-skill
+state | jobs | graphs | harness | night | brain | experts | telegram` prints JSON and never prompts
 (see [cli-client.md](references/cli-client.md)). The panel is the human view of
 the same server. Read [control-center.md](references/control-center.md) when launching or changing
 agent, OpenClaw, browser or Telegram management. The panel launches real installed
@@ -145,6 +192,13 @@ Keep correctness gates separate from token, latency and cost measurements. Unkno
 or incomplete evidence cannot establish a winner. Retain the incumbent on ties or
 regressions; preserve explicit model choices even when another model scores better.
 
+When no answer key, grader or frozen case set exists, read
+[recursive-harnessing.md](references/recursive-harnessing.md): Propose–Probe–Compose refines
+an agent's harness on the task itself, blind selection picks the output to deliver, and a
+scoped library carries supported lessons with their adopted harnesses to later tasks.
+`NO_ENTRY` is valid. Review exported proposals within existing authorization; use a measured
+comparison before claiming a general improvement.
+
 Ordinary task completion does not require an optimization experiment. Lessons are
 evidence for a future change, not permission for automatic skill rewrites. The
 local workflow requires no service; read [overmind.md](references/overmind.md)
@@ -158,8 +212,12 @@ only for an actual Overmind integration or experiment.
 | Session usage, compact, checkpoint | `references/session-governor.md` |
 | Supplied files/PDFs → Markdown before analysis | `references/markitdown.md` |
 | Capability diagnosis, paired evals, candidate adoption | `references/measured-improvement.md` |
+| Harness improvement without ground truth (Harness²), domain experience library | `references/recursive-harnessing.md` |
 | Optional Overmind MCP, tracing and optimizer | `references/overmind.md` |
 | Expert selection, ownership, bounded briefs | `references/efficient-dispatch.md` |
+| Default: current AI leads native agents, shared tasks and verification | `references/native-primary.md` |
+| Team Lead, shared tasks, bounded loops and execution DAGs | `references/execution-graphs.md` |
+| Graph supervision, limits, structured evidence and recovery actions | `references/harness.md` |
 | CLI client for jobs, Night Shift, brain, experts, Telegram | `references/cli-client.md` |
 | Mac panel, agents, OpenClaw, browser, Telegram | `references/control-center.md` |
 | Signed-in browser tasks, structured extraction, WebBrain MCP | `references/webbrain.md` |

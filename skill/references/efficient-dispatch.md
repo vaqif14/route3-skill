@@ -1,5 +1,12 @@
 # Efficient dispatch
 
+The current AI host is the single Team Lead; use its available native agents
+first. Read [native-primary.md](native-primary.md) for coordination and ownership.
+There is no required vendor, fixed model ladder or control-center service for
+normal Route3 work. A user-selected external backend remains an option when it
+adds a needed capability. Preserve the host's configured models unless the user
+explicitly changes them.
+
 Choose the smallest team that can finish correctly. Direct execution is valid
 for isolated work; one expert owns a coherent feature. Parallel agents need
 independent deliverables and disjoint ownership. Use available host agents by
@@ -33,7 +40,7 @@ reviewer's desired verdict. At completion return paths, behavior, checks and
 limitations in a concise handoff. Failed checks require specific corrections,
 not a new broad architecture discussion.
 
-Legacy factory runs continue to use their dispatch token and writer ACK contract.
+Explicitly selected legacy factory runs continue to use their dispatch token and writer ACK contract.
 They are an explicit workflow, not required ceremony for every Route3 invocation.
 
 ## Browser task delegation

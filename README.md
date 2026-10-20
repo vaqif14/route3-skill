@@ -1,9 +1,18 @@
 # Route3
 
-Route3 supervises agent work with measured session usage, bounded context handoffs,
-and a Mac control center for agent jobs, OpenClaw, browser and Telegram lifecycle.
+Say **"route3 ilə et"** with your task. The AI already handling the conversation
+becomes Team Lead: it plans, delegates to available agents in the same AI tool,
+tracks shared work, verifies results and integrates the outcome. No particular
+provider brand or model ladder is required. Models inherit the host configuration
+unless you choose otherwise.
 
-## Local setup
+The workflow is **Prompt → Agents → Loops → Graphs → Harness**. Native host tools
+provide the default execution lane; the local control center is an optional
+backend for persisted jobs, graph checkpoints and external integrations. Its
+runtime limits apply to its own jobs, not all native agents. See
+[native orchestration](skill/references/native-primary.md).
+
+## Optional control-center setup
 
 Requires Node.js 18+ for the control center. Each provider CLI can require a newer
 runtime; OpenClaw installed through NVM uses its adjacent Node executable.
@@ -74,7 +83,8 @@ lists notebooks, `/brain <n>` grounds every following `/run`, `/brain off` clear
 ## CLI for agents
 
 Everything the panel does is also a JSON command, which is how AI agents are
-meant to drive Route3:
+meant to drive the optional control-center backend. Normal host-native Route3
+orchestration does not require these commands:
 
 ```bash
 route3-skill jobs start --prompt "Review src/ against the notebook" --expert x-1a2b3c4d
@@ -86,6 +96,62 @@ printf '%s' "$BOT_TOKEN" | route3-skill telegram configure --token-stdin
 
 No prompts, no secrets in argv, exit codes 2/3/4 for usage / server down /
 rejected. See `skill/references/cli-client.md`.
+
+## Prompt → Agents → Loops → Graphs → Harness
+
+The main agent coordinates a declared team through a shared task graph. Agent
+tasks use existing provider jobs; check tasks run explicit local argv commands;
+loop tasks repeat execution only after a nonzero verifier exit, up to 1–5 attempts.
+Dependencies support success/failure branches and all/any joins. Team claims,
+assignments and messages are available through the JSON CLI/API.
+
+```bash
+route3-skill graphs create --prompt "Implement the scoped change" \
+  --check-argv '["npm","test"]' --attempts 2 --source-key issue-42-revision-3
+route3-skill graphs show <id>
+route3-skill graphs start <id> --hash <definitionHash-from-show>
+route3-skill graphs tasks <id>
+route3-skill graphs wait <id>
+```
+
+Creation saves a draft without launching jobs. Start uses the reviewed hash;
+ordinary user authorization and provider approvals still apply. Checkpoints
+retain completed work, pause recovery and block unknown outcomes for explicit
+reconciliation. The scheduler makes no model calls to poll readiness; a stable
+source key deduplicates repeated triggers. A leading check in a JSON graph can
+skip already-satisfied work before launching an agent. The prompt shortcut checks
+after agent work. No external decision service is required.
+
+Teams use fresh bounded provider jobs. The declared lead is coordinated by the
+calling main agent; this does not create a persistent autonomous lead session or
+deliver chat into an already-running provider. See the
+[schema, commands and recovery contract](skill/references/execution-graphs.md).
+
+The harness supervises graph execution with immutable agent-attempt, elapsed-time
+and concurrency limits, a bounded transition journal and a structured report:
+
+```bash
+route3-skill graphs create --prompt "Implement the scoped change" \
+  --check-argv '["npm","test"]' --attempts 2 \
+  --max-agent-attempts 2 --max-elapsed-ms 1800000 --max-concurrent-tasks 1
+route3-skill harness report <id>
+```
+
+Limits pause new dispatch; in-flight work may finish. Exhausting agent attempts
+still allows already-earned loop verification within the time limit. The report
+separates check results, agent-only completion, permission waits and unknown
+outcomes; token use and cost are explicitly unknown. See the
+[harness contract](skill/references/harness.md) for defaults, recovery and limits.
+
+Harness² refinement is available through
+[`recursive-harness.py`](skill/scripts/recursive-harness.py): the current AI
+lead manages independent procedure/domain proposals, isolated probes,
+composition, finals-only adoption and evidence-supported lessons. It needs no
+provider SDK or running server. Default `k=1` uses four task executions;
+ordinary tasks do not require this experiment. See the
+[workflow and CLI](skill/references/recursive-harnessing.md). This implements
+the mechanism from the pinned Google Research source; it makes no claim of
+improved model quality without a separate measured comparison.
 
 ## Provider failover
 

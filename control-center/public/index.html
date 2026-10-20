@@ -7,6 +7,8 @@
   <meta name="theme-color" content="#f5f6f8">
   <title>Route3 · İdarəetmə mərkəzi</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/agent-tree.css">
+  <script src="/agent-tree.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -19,6 +21,7 @@
       <button class="nav-button" data-view="sessions"><span aria-hidden="true">◉</span>Sessiyalar <span class="nav-count" id="session-count">—</span></button>
       <button class="nav-button" data-view="launch"><span aria-hidden="true">↗</span>Agent başlat</button>
       <button class="nav-button" data-view="experts"><span aria-hidden="true">◈</span>Ekspertlər <span class="nav-count" id="expert-count">—</span></button>
+      <button class="nav-button" data-view="tree"><span aria-hidden="true">⑂</span>Agent ağacı <span class="nav-count" id="tree-count">—</span></button>
       <button class="nav-button" data-view="jobs"><span aria-hidden="true">≡</span>Tapşırıqlar <span class="nav-count" id="job-count">—</span></button>
       <button class="nav-button" data-view="integrations"><span aria-hidden="true">⌘</span>İnteqrasiyalar</button>
       <button class="nav-button" data-view="telegram"><span aria-hidden="true">↗</span>Telegram ilə davam et</button>
@@ -69,6 +72,10 @@
           </article>
           <article class="panel"><div class="panel-heading"><div><h2>Mövcud ekspertlər</h2><p>Başlatma səhifəsində seçilir</p></div></div><div id="expert-list" class="expert-list"><div class="empty">Ekspertlər yüklənir…</div></div></article>
         </div>
+      </section>
+      <section class="view" id="view-tree" aria-labelledby="tree-heading" lang="en" hidden>
+        <div class="page-heading"><div><p class="eyebrow">LIVE ORCHESTRATION</p><h1 id="tree-heading">The team, connected.</h1><p>Follow every agent, from the first task to the last result.</p></div><button class="primary" data-go="launch">Start an agent ↗</button></div>
+        <div id="agent-tree-panel" class="agent-tree-panel"></div>
       </section>
       <section class="view" id="view-jobs" aria-labelledby="jobs-heading" hidden><div class="page-heading"><div><p class="eyebrow">İCRA VƏ ÇIXIŞ</p><h1 id="jobs-heading">Tapşırıqlar</h1><p>Bu idarəetmə mərkəzindən başladılmış agentlərin vəziyyəti.</p></div><button class="primary" data-go="launch">Yeni tapşırıq ↗</button></div><div id="jobs-list"><div class="empty">Tapşırıqlar yüklənir…</div></div></section>
       <section class="view" id="view-integrations" aria-labelledby="integrations-heading" hidden><div class="page-heading"><div><p class="eyebrow">LOKAL XİDMƏTLƏR</p><h1 id="integrations-heading">İnteqrasiyalar</h1><p>OpenClaw, brauzer və Telegram bağlantısını idarə edin.</p></div></div><div class="integration-grid" id="integrations-list"><div class="empty">Xidmətlər yoxlanılır…</div></div><p class="footnote">İcra edilə bilən əməliyyatlar bu Mac-dəki quraşdırma və xidmət imkanlarına əsasən göstərilir.</p></section>

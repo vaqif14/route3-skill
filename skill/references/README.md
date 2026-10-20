@@ -2,6 +2,16 @@
 
 Progressive disclosure for Route3. Load only what the current step needs (`SKILL.md` table is authoritative for order).
 
+Default: [native-primary.md](native-primary.md) makes the current AI the Team
+Lead using available host agents. [efficient-dispatch.md](efficient-dispatch.md)
+defines bounded briefs. Persisted [graphs](execution-graphs.md) and
+[harness](harness.md) are optional local-runtime backends.
+Requested optimization uses [measured-improvement.md](measured-improvement.md), or
+[recursive-harnessing.md](recursive-harnessing.md) when no ground truth exists.
+
+The historical catalog below is for explicitly selected legacy profiles. Its
+"Always" labels apply within that profile, not every Route3 invocation.
+
 | When | File |
 |---|---|
 | Always (Build) | [slim-v3-contract.md](slim-v3-contract.md) |
@@ -14,7 +24,7 @@ Progressive disclosure for Route3. Load only what the current step needs (`SKILL
 | Skill pick | [skill-routing.md](skill-routing.md) |
 | Pipeline / design | [build-pipeline.md](build-pipeline.md) |
 | Agents / user gates | [agents-and-gates.md](agents-and-gates.md) |
-| Codex → Kimi → native | [native-primary.md](native-primary.md) |
+| Current AI → native agents (default, replaces fixed vendor ladders) | [native-primary.md](native-primary.md) |
 | Parallel writers | [parallel-ownership.md](parallel-ownership.md) |
 | Ponytail / YAGNI | [ponytail-ladder.md](ponytail-ladder.md) |
 | Product patterns | [product-engineering.md](product-engineering.md) |

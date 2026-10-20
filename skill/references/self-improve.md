@@ -2,7 +2,9 @@
 
 The mandatory triggers below belong to existing factory/slice runs. For requested
 capability optimization outside that mode, use
-[measured-improvement.md](measured-improvement.md). A bound lesson preserves
+[measured-improvement.md](measured-improvement.md); without ground truth, use
+[recursive-harnessing.md](recursive-harnessing.md), whose reflections can record reviewed, bound lessons
+tagged `harness2` through `record-lesson.sh`. A bound lesson preserves
 evidence; it does not establish a measured gain or automatically authorize a
 skill rewrite, paid experiment or model switch.
 

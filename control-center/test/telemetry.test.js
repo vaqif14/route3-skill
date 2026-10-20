@@ -189,3 +189,63 @@ test('missing cache counters do not imply complete cache/input breakdown',async 
  const result=await collectTelemetry({home});
  assert.equal(result.summary.inputTokens,100);assert.equal(result.summary.cachedInputTokens,null);assert.equal(result.summary.completeBreakdown,false);
 });
+
+test('native Codex spawn metadata and explicit task lifecycle retain parent identity without prompt content', async t => {
+  const { home, file } = await fixture(t, codexPath, [
+    { type: 'session_meta', timestamp: '2026-10-19T10:00:00Z', payload: { id: 'spawned', cwd: '/test', agent_nickname: 'Builder', source: { subagent: { thread_spawn: { parent_thread_id: 'lead' } } }, instructions: 'PRIVATE CONTENT MUST NOT APPEAR' } },
+    { type: 'event_msg', timestamp: '2026-10-19T10:00:01Z', payload: { type: 'task_started' } },
+    tokenEvent(counts(10, 2), counts(10, 2))
+  ]);
+  let result = await collectTelemetry({ home });
+  assert.equal(result.sessions[0].parentSessionId, 'lead');
+  assert.equal(result.sessions[0].agentName, 'Builder');
+  assert.equal(result.sessions[0].status, 'running');
+  assert.equal(result.sessions[0].startedAt, '2026-10-19T10:00:00.000Z');
+  assert.equal(result.sessions[0].costUsd, null);
+  await fs.appendFile(file, JSON.stringify({ type: 'event_msg', timestamp: '2026-10-19T10:00:03Z', payload: { type: 'task_complete' } }) + '\n');
+  result = await collectTelemetry({ home });
+  assert.equal(result.sessions[0].status, 'done');
+  assert.equal(result.sessions[0].endedAt, '2026-10-19T10:00:03.000Z');
+  assert.equal(JSON.stringify(result).includes('PRIVATE CONTENT'), false);
+});
+
+test('reported own message currency deduplicates, while partial logs and inclusive bills stay unknown', async t => {
+  const row = { type: 'message', id: 'cost-one', message: { role: 'assistant', model: 'reported', usage: { input: 1, output: 1, cost: { total: 0.25 } } } };
+  const { home, file } = await fixture(t, '.openclaw/agents/main/sessions/cost.jsonl', [
+    { type: 'session', id: 'own-cost', timestamp: '2026-10-19T10:00:00Z' }, row, row
+  ]);
+  let result = await collectTelemetry({ home });
+  assert.equal(result.sessions[0].costUsd, 0.25);
+  assert.equal(result.sessions[0].status, 'unknown');
+  await fs.appendFile(file, JSON.stringify({ type: 'result', subtype: 'success', timestamp: '2026-10-19T10:00:05Z', total_cost_usd: 100 }) + '\n');
+  result = await collectTelemetry({ home });
+  assert.equal(result.sessions[0].costUsd, 0.25, 'aggregate result bill cannot override own message currency');
+  assert.equal(result.sessions[0].status, 'done');
+  await fs.appendFile(file, '{malformed\n');
+  result = await collectTelemetry({ home });
+  assert.equal(result.sessions[0].costUsd, null);
+  await fs.writeFile(file, JSON.stringify({ type: 'result', subtype: 'success', total_cost_usd: 100, costScope: 'subtree' }) + '\n');
+  assert.equal((await collectTelemetry({ home })).sessions[0].costUsd, null);
+});
+
+test('OpenClaw native spawn index links enrich a matching transcript without guessing session keys', async t => {
+  const { home, file } = await fixture(t, '.openclaw/agents/main/sessions/child.jsonl', [
+    { type: 'session', id: 'child-native' },
+    { type: 'message', id: 'one', message: { role: 'assistant', usage: { input: 1, output: 1 } } }
+  ]);
+  const index = { 'agent:main:main': { sessionId: 'parent-native' }, 'agent:main:subagent:child': { sessionId: 'child-native', spawnedBy: 'agent:main:main', status: 'completed', startedAt: '2026-10-19T10:00:00Z', endedAt: '2026-10-19T10:00:02Z', updatedAt: Date.now() + 1000 } };
+  await fs.writeFile(path.join(path.dirname(file), 'sessions.json'), JSON.stringify(index));
+  const result = await collectTelemetry({ home });
+  const child = result.sessions.find(session => session.id === 'child-native');
+  assert.equal(child.parentSessionId, 'parent-native');
+  assert.equal(child.status, 'done');
+  assert.equal(child.endedAt, '2026-10-19T10:00:02.000Z');
+  assert.equal(result.sessions.length, 2);
+});
+
+test('a manually forked conversation is not reported as a spawned agent', async t => {
+  const { home } = await fixture(t, codexPath, [{ type: 'session_meta', payload: { id: 'manual-fork', forked_from_id: 'other-session', source: 'cli' } }]);
+  const result = await collectTelemetry({ home });
+  assert.equal(result.sessions[0].parentSessionId, undefined);
+  assert.equal(result.sessions[0].status, 'unknown');
+});
