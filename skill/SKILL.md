@@ -184,6 +184,13 @@ clearly replaces or cancels it.
 
 ## Improve from observed outcomes
 
+For substantial repeated work or trace-based diagnosis, use the local
+[OpenJarvis evidence loop](references/openjarvis.md): record correlated execution
+steps, explicit check evidence and measured self-only telemetry, then retrieve
+prior observations in the same project/domain/model/environment scope. Feedback
+stays separate from verification. The current AI decides the next action; this
+does not intercept host tools, change models or train them automatically.
+
 When asked to optimize Route3, a capability, prompts or model routing, read
 [measured-improvement.md](references/measured-improvement.md). Map the relevant
 capability to its actual files, diagnose observed failures, freeze the evaluation
@@ -212,6 +219,7 @@ only for an actual Overmind integration or experiment.
 | Session usage, compact, checkpoint | `references/session-governor.md` |
 | Supplied files/PDFs → Markdown before analysis | `references/markitdown.md` |
 | Capability diagnosis, paired evals, candidate adoption | `references/measured-improvement.md` |
+| Local correlated traces, explicit feedback and scoped execution experience | `references/openjarvis.md` |
 | Harness improvement without ground truth (Harness²), domain experience library | `references/recursive-harnessing.md` |
 | Optional Overmind MCP, tracing and optimizer | `references/overmind.md` |
 | Expert selection, ownership, bounded briefs | `references/efficient-dispatch.md` |
