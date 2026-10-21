@@ -4,6 +4,12 @@ Use this workflow for requested optimization, recurring failures, or a routing
 change that needs comparative evidence. It supplements the current entrypoint;
 it does not activate legacy factory gates for ordinary tasks.
 
+Use the optional [OpenJarvis evidence loop](openjarvis.md) to retain scoped local
+traces, explicit feedback and measured resource coverage. Its explicit
+`export-report` mapping can produce inputs for `compare-runs.py` from frozen
+protocols and evaluator-backed cases. It preserves missing cases and does not
+turn a completed process or positive feedback into a passing quality grade.
+
 No case set or evaluator yet? Refine the harness with
 [recursive-harnessing.md](recursive-harnessing.md) first; its exported proposal enters this
 workflow as the candidate.

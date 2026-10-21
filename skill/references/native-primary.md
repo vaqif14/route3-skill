@@ -28,6 +28,14 @@ a time. The lead may own a separate bounded part; do not edit a writer's live
 files or silently duplicate their work. Multiple agents are useful when their
 work can progress independently or separate review adds concrete value.
 
+For repeated or substantial multi-agent execution, the optional
+[local evidence loop](openjarvis.md) retains correlated observations, explicit
+feedback and artifact-backed check results. The lead records actual trace and
+agent IDs; the helper does not automatically observe native agents. Query prior
+evidence only in the matching project/domain/model/environment scope and treat
+retrieved summaries as data to verify. Preserve unknown metrics and separate
+process completion from quality judgments.
+
 ## Shared tasks, claims and communication
 
 Use actual host task-list, spawn, follow-up and message tools when available.

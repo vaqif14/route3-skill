@@ -153,6 +153,14 @@ ordinary tasks do not require this experiment. See the
 the mechanism from the pinned Google Research source; it makes no claim of
 improved model quality without a separate measured comparison.
 
+The [OpenJarvis evidence loop](skill/references/openjarvis.md) adds a local
+SQLite trace store, ordered execution steps, explicit feedback and scoped
+experience retrieval. Measured latency, tokens, cost, energy and FLOPs retain
+their coverage and unknown values. Explicit evaluator-backed exports feed the
+existing comparison workflow; process completion and feedback are not quality
+grades. The current AI remains in charge, with no OpenJarvis runtime install,
+automatic model switch or training service.
+
 ## Provider failover
 
 When an automatically routed job fails because its provider's quota, rate limit
